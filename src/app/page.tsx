@@ -92,7 +92,7 @@ export default function HomePage() {
               </p>
 
               <h2 className="text-4xl font-black mt-3">
-                Trending on RitualMP
+                Trending on VastMint
               </h2>
             </div>
 
