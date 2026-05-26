@@ -1,0 +1,4 @@
+export const VASTMINT_NFT_ADDRESS =
+  "0x8C4936f541a067Efa11a22b73dd878ae9548e00f";
+
+export const RITUAL_CHAIN_ID = 1979;
