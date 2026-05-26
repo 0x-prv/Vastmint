@@ -1,3 +1,6 @@
+"use client";
+
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Image from "next/image";
 export default function Navbar() {
   return (
@@ -59,9 +62,7 @@ export default function Navbar() {
             Explore
           </button>
 
-          <button className="bg-green-400 hover:bg-green-300 text-black font-bold px-5 py-2 rounded-xl glow-green transition-all">
-            Connect Wallet
-          </button>
+          <ConnectButton />
 
         </div>
 
