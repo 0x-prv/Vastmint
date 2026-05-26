@@ -5,19 +5,17 @@ import "@rainbow-me/rainbowkit/styles.css";
 import {
   RainbowKitProvider,
   getDefaultConfig,
+  darkTheme,
 } from "@rainbow-me/rainbowkit";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
 import { WagmiProvider } from "wagmi";
-
 import { defineChain } from "viem";
-
 import { useState } from "react";
 
 const ritualTestnet = defineChain({
   id: 1979,
-  name: "Ritual",
+  name: "Ritual Testnet",
   nativeCurrency: {
     decimals: 18,
     name: "Ritual",
@@ -25,13 +23,16 @@ const ritualTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["http://rpc.ritualfoundation.org"],
+      http: ["https://rpc.ritualfoundation.org"],
+    },
+    public: {
+      http: ["https://rpc.ritualfoundation.org"],
     },
   },
   blockExplorers: {
     default: {
       name: "Ritual Explorer",
-      url: "http://explorer.ritualfoundation.org",
+      url: "https://explorer.ritualfoundation.org",
     },
   },
   testnet: true,
@@ -54,7 +55,13 @@ export default function Web3Provider({
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: "#077345",
+            accentColorForeground: "white",
+            borderRadius: "large",
+          })}
+        >
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>
