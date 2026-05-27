@@ -41,7 +41,7 @@ export default function MarketplacePage() {
             <Link
               href={`/nft/${index + 1}`}
               key={name}
-              className="group rounded-3xl overflow-hidden border border-[#077345]/10 bg-[#0b1f17] hover:border-[#077345]/30 transition block"
+              className="group rounded-2xl overflow-hidden border border-[#077345]/10 bg-[#0b1f17] hover:border-[#077345]/30 transition block"
             >
               <div className="h-72 bg-gradient-to-br from-[#077345]/25 to-black" />
 

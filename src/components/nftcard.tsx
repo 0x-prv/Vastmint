@@ -14,7 +14,7 @@ export default function NFTCard({
   badge,
 }: NFTCardProps) {
   return (
-    <div className="group rounded-3xl overflow-hidden border border-green-500/10 bg-zinc-900 hover:border-green-400/30 transition-all duration-300">
+    <div className="group rounded-2xl overflow-hidden border border-green-500/10 bg-zinc-900 hover:border-green-400/30 transition-all duration-300">
 
       <div className="h-72 relative overflow-hidden">
 

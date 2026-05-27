@@ -105,7 +105,7 @@ export default function HomePage() {
           {featuredNFTs.map((nft) => (
             <div
               key={nft.title}
-              className="min-w-[350px] rounded-3xl overflow-hidden border border-green-500/10 bg-zinc-900 group"
+              className="min-w-[350px] rounded-2xl overflow-hidden border border-green-500/10 bg-zinc-900 group"
             >
 
               <div className="h-[420px] relative overflow-hidden">
@@ -185,7 +185,7 @@ export default function HomePage() {
 
           </div>
 
-          <div className="overflow-x-auto rounded-3xl border border-green-500/10 bg-zinc-950">
+          <div className="overflow-x-auto rounded-2xl border border-green-500/10 bg-zinc-950">
 
             <table className="w-full min-w-[1000px]">
 

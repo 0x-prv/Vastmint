@@ -29,7 +29,7 @@ export default async function NFTDetailPage({
             Native Ritual ecosystem NFT listed on VastMint.
           </p>
 
-          <div className="mt-10 rounded-3xl border border-[#077345]/20 bg-[#0b1f17] p-6">
+          <div className="mt-10 rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-6">
             <p className="text-zinc-500 text-sm">Current Price</p>
             <h2 className="text-4xl font-black mt-2">1.8 RITUAL</h2>
 

@@ -42,7 +42,7 @@ export default function CollectionsPage() {
             <Link
               key={collection.slug}
               href={`/collections/${collection.slug}`}
-              className="group rounded-3xl overflow-hidden border border-[#077345]/10 bg-[#0b1f17] hover:border-[#077345]/40 transition"
+              className="group rounded-2xl overflow-hidden border border-[#077345]/10 bg-[#0b1f17] hover:border-[#077345]/40 transition"
             >
               <div className="h-64 bg-gradient-to-br from-[#077345]/30 to-black" />
 
