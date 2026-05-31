@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   useAccount,
+  useReadContract,
   useWriteContract,
   useChainId,
   useSwitchChain,
@@ -17,14 +18,13 @@ import {
 import { VASTMINT_NFT_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
-const TOKEN_URI = "https://ipfs.io/ipfs/bafkreifakeexamplemetadata";
+const TOKEN_URI = "ipfs://bafkreiachcnnaenraymtan7vk3zi7f4wzeatrvhn747qiusypsjj4f73eu";
 
 const COLLECTION = {
   name: "Ritual Genesis Pass",
   description:
     "The founding collection of VastMint — minted on Ritual testnet. Each pass represents early access to the native NFT ecosystem of Ritual.",
   supply: 1000,
-  minted: 420,
   price: "Free",
   phases: [
     { label: "Whitelist Mint", status: "done" },
@@ -41,12 +41,21 @@ export default function MintPage() {
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
+  const { data: totalSupply } = useReadContract({
+    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "totalSupply",
+    chainId: RITUAL_CHAIN_ID,
+  });
+
+  const minted = totalSupply ? Number(totalSupply) : 0;
+  const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
+  const progress = Math.round((minted / COLLECTION.supply) * 100);
+
   const [mintState, setMintState] = useState<MintState>("idle");
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
-  const progress = Math.round((COLLECTION.minted / COLLECTION.supply) * 100);
   const isPending =
     mintState === "pending" ||
     mintState === "switching" ||
@@ -104,7 +113,7 @@ export default function MintPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-28 pb-24">
+    <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#077345]/8 rounded-full blur-[140px]" />
       </div>
@@ -119,7 +128,6 @@ export default function MintPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-
           <div className="lg:col-span-2 space-y-4">
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
               <div className="aspect-square w-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
@@ -130,12 +138,12 @@ export default function MintPage() {
                   <div className="w-32 h-32 rounded-full border border-[#077345]/15 animate-ping" style={{ animationDuration: "3s", animationDelay: "0.5s" }} />
                 </div>
                 <div className="relative z-10 flex flex-col items-center gap-4">
-                  <div className="w-24 h-24 rounded-2xl bg-[#077345]/15 border border-[#077345]/25 flex items-center justify-center">
-                    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-                      <path d="M22 4L38 13V31L22 40L6 31V13L22 4Z" stroke="#077345" strokeWidth="1.5" fill="none" />
-                      <path d="M22 13L31 18V28L22 33L13 28V18L22 13Z" fill="#077345" fillOpacity="0.5" />
-                      <path d="M22 18L27 21V27L22 30L17 27V21L22 18Z" fill="#077345" fillOpacity="0.9" />
-                    </svg>
+                  <div className="w-40 h-40 rounded-2xl overflow-hidden">
+                    <img
+                      src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
+                      alt="Ritual Genesis Pass"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="text-center">
                     <p className="text-white text-sm font-bold">Ritual Genesis Pass</p>
@@ -153,13 +161,16 @@ export default function MintPage() {
               <div className="p-5 space-y-3 border-t border-white/5">
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Contract</span>
-                  
-                   <a href={`${EXPLORER_URL}/address/${VASTMINT_NFT_ADDRESS}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-mono text-xs hover:text-emerald-300 transition flex items-center gap-1">
+                  <a
+                    href={`${EXPLORER_URL}/address/${VASTMINT_NFT_ADDRESS}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-400 font-mono text-xs hover:text-emerald-300 transition flex items-center gap-1"
+                  >
                     {VASTMINT_NFT_ADDRESS.slice(0, 6)}...{VASTMINT_NFT_ADDRESS.slice(-4)}
                     <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
                       <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
                     </svg>
-                
                   </a>
                 </div>
                 <div className="flex items-center justify-between">
@@ -211,7 +222,7 @@ export default function MintPage() {
               <div className="mt-6 grid grid-cols-3 gap-3">
                 {[
                   { label: "Total Supply", value: COLLECTION.supply.toLocaleString() },
-                  { label: "Minted", value: COLLECTION.minted.toLocaleString() },
+                  { label: "Minted", value: minted.toLocaleString() },
                   { label: "Mint Price", value: COLLECTION.price },
                 ].map(({ label, value }) => (
                   <div key={label} className="rounded-xl bg-black/30 border border-white/5 p-4 text-center">
@@ -223,7 +234,7 @@ export default function MintPage() {
               <div className="mt-5">
                 <div className="flex justify-between text-xs mb-2">
                   <span className="text-zinc-600">Minting Progress</span>
-                  <span className="text-zinc-400 font-bold">{COLLECTION.minted} / {COLLECTION.supply} · {progress}%</span>
+                  <span className="text-zinc-400 font-bold">{minted} / {COLLECTION.supply} · {progress}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-black/50 overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-[#077345] to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />

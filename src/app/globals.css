@@ -3,19 +3,13 @@
 :root {
   --background: #313338;
   --foreground: #f8fafc;
-
   --card: #313338;
   --card-foreground: #f8fafc;
-
-  --primary: ##077345;
+  --primary: #077345;
   --primary-foreground: #313338;
-
   --secondary: #313338;
-
   --muted: #94a3b8;
-
   --border: rgba(57, 255, 20, 0.15);
-
   --radius: 1.5rem;
 }
 
@@ -24,32 +18,61 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(57,255,20,0.08), transparent 30%),
-    linear-gradient(to bottom, #313338, #313338);
-    
+  background-color: #05150f;
+  background-image: radial-gradient(circle, rgba(7, 115, 69, 0.15) 1px, transparent 1px);
+  background-size: 28px 28px;
   color: var(--foreground);
-
-  font-family:
-    Inter,
-    system-ui,
-    sans-serif;
-
+  font-family: Inter, system-ui, sans-serif;
   overflow-x: hidden;
+}
+
+/* Animated glow orbs - pointer-events none, z-index -1 para hindi matakpan ang content */
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  animation: orb-shift 12s ease-in-out infinite alternate;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(7, 115, 69, 0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(7, 115, 69, 0.10) 0%, transparent 60%);
+}
+
+@keyframes orb-shift {
+  0% {
+    background:
+      radial-gradient(ellipse 80% 60% at 10% 0%, rgba(7, 115, 69, 0.13) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 90% 100%, rgba(7, 115, 69, 0.10) 0%, transparent 60%);
+  }
+  33% {
+    background:
+      radial-gradient(ellipse 70% 55% at 80% 10%, rgba(7, 115, 69, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 65% 45% at 20% 90%, rgba(7, 115, 69, 0.09) 0%, transparent 60%);
+  }
+  66% {
+    background:
+      radial-gradient(ellipse 75% 50% at 50% 0%, rgba(7, 115, 69, 0.11) 0%, transparent 60%),
+      radial-gradient(ellipse 55% 55% at 50% 100%, rgba(7, 115, 69, 0.08) 0%, transparent 60%);
+  }
+  100% {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 100%, rgba(7, 115, 69, 0.13) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 0%, rgba(7, 115, 69, 0.10) 0%, transparent 60%);
+  }
 }
 
 /* Neon glow */
 .glow-green {
   box-shadow:
-    0 0 20px rgba(57,255,20,0.25),
-    0 0 40px rgba(57,255,20,0.15);
+    0 0 20px rgba(57, 255, 20, 0.25),
+    0 0 40px rgba(57, 255, 20, 0.15);
 }
 
 /* Glass effect */
 .glass {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(57,255,20,0.08);
+  border: 1px solid rgba(57, 255, 20, 0.08);
 }
 
 /* Scrollbar */

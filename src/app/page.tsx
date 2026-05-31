@@ -1,244 +1,312 @@
-import Navbar from "@/components/Navbar";
+"use client";
 
-const featuredNFTs = [
-  {
-    title: "Neon Monk #204",
-    image:
-      "https://images.unsplash.com/photo-1634973357973-f2ed2657db3c?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    title: "Ritual Reaper #88",
-    image:
-      "https://images.unsplash.com/photo-1642104704074-907c0698cbd9?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    title: "Shadow Node #12",
-    image:
-      "https://images.unsplash.com/photo-1620121692029-d088224ddc74?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    title: "AI Vault #19",
-    image:
-      "https://images.unsplash.com/photo-1618005198919-d3d4b5a92eee?q=80&w=1200&auto=format&fit=crop",
-  },
-];
+import Link from "next/link";
+import { useReadContract } from "wagmi";
+import {
+  VASTMINT_NFT_ADDRESS,
+  VASTMINT_FACTORY_ADDRESS,
+  VASTMINT_MARKETPLACE_ADDRESS,
+  RITUAL_CHAIN_ID,
+} from "@/lib/blockchain/contracts";
+import { VASTMINT_FACTORY_ABI, VASTMINT_MARKETPLACE_ABI } from "@/lib/blockchain/abi";
 
-const topCollections = [
-  {
-    name: "FREAKS",
-    floor: "0.0119 ETH",
-    change: "+50.8%",
-    offer: "0.0095 WETH",
-    volume: "1.30 ETH",
-    sales: "132",
-  },
-  {
-    name: "Ritual Genesis",
-    floor: "0.038 ETH",
-    change: "+38%",
-    offer: "0.030 WETH",
-    volume: "3.28 ETH",
-    sales: "91",
-  },
-  {
-    name: "Shadow Nodes",
-    floor: "0.018 ETH",
-    change: "+60%",
-    offer: "0.0048 WETH",
-    volume: "0.53 ETH",
-    sales: "51",
-  },
-];
+const EXPLORER_URL = "https://explorer.ritualfoundation.org";
+
+const GENESIS_PASS_IMAGE =
+  "https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4";
+
+function resolveImage(image: string) {
+  if (!image) return GENESIS_PASS_IMAGE;
+  if (image.startsWith("ipfs://"))
+    return `https://ipfs.io/ipfs/${image.replace("ipfs://", "")}`;
+  return image;
+}
+
+function shortAddress(addr: string) {
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
 
 export default function HomePage() {
-  return (
-    <main className="min-h-screen bg-black text-white overflow-hidden">
+  const { data: collections, isLoading: collectionsLoading } = useReadContract({
+    address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
+    abi: VASTMINT_FACTORY_ABI,
+    functionName: "getAllCollections",
+    chainId: RITUAL_CHAIN_ID,
+  });
 
-      <Navbar />
+  const { data: activeListings, isLoading: listingsLoading } = useReadContract({
+    address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
+    abi: VASTMINT_MARKETPLACE_ABI,
+    functionName: "getActiveListings",
+    chainId: RITUAL_CHAIN_ID,
+  });
+
+ const allCollections = [...((collections as any[]) ?? [])];
+
+ const featuredListings = ((activeListings as any[]) ?? []).slice(0, 4);
+
+  return (
+    <main className="min-h-screen bg-[#05150f] text-white overflow-hidden">
+      {/* BG glow */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[#077345]/7 rounded-full blur-[160px]" />
+      </div>
 
       {/* HERO */}
       <section className="relative px-6 pt-36 pb-20">
-
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(57,255,20,0.12),transparent_40%)]" />
-
         <div className="max-w-7xl mx-auto relative z-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-700/30 bg-emerald-900/20 px-4 py-1.5 mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <p className="text-emerald-400 uppercase tracking-[0.2em] text-xs font-bold">
+             Live on Ritual Testnet
+            </p>
+          </div>
 
-          <p className="text-green-400 uppercase tracking-[0.25em] text-sm">
-            The native NFT marketplace of Ritual
-          </p>
-
-          <h1 className="text-6xl md:text-8xl font-black mt-6 leading-none">
+          <h1 className="text-6xl md:text-8xl font-black mt-2 leading-none">
             Discover Ritual NFTs.
           </h1>
 
           <p className="text-zinc-400 mt-6 text-lg max-w-2xl leading-relaxed">
-            Buy, sell, and launch collections inside the Ritual ecosystem through a premium AI-native marketplace experience.
+            VastMint is currently live on Ritual Testnet. Mint, list, and explore
+            NFTs inside the Ritual ecosystem — for free.
           </p>
 
+          <div className="flex flex-wrap gap-4 mt-8">
+            <Link
+              href="/collections"
+              className="rounded-xl bg-[#077345] hover:bg-[#066039] transition px-6 py-3 text-sm font-bold text-white"
+            >
+              Explore Collections
+            </Link>
+            <Link
+              href="/launchpad"
+              className="rounded-xl border border-white/10 hover:bg-white/5 transition px-6 py-3 text-sm font-bold text-zinc-300"
+            >
+              Launch Your NFT
+            </Link>
+          </div>
         </div>
-
       </section>
 
-      {/* FEATURED NFTS */}
+      {/* FEATURED — Active Listings */}
       <section className="pb-24 overflow-hidden">
-
-        <div className="px-6 mb-10">
-
+        <div className="px-6 mb-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-
             <div>
-              <p className="text-green-400 uppercase tracking-[0.25em] text-sm">
+              <p className="text-[#077345] uppercase tracking-[0.2em] text-xs font-bold">
                 Featured NFTs
               </p>
-
-              <h2 className="text-4xl font-black mt-3">
-                Trending on VastMint
+              <h2 className="text-4xl font-black mt-2">
+                {listingsLoading
+                  ? "Loading..."
+                  : featuredListings.length > 0
+                  ? "Listed on VastMint"
+                  : "Trending on VastMint"}
               </h2>
             </div>
-
-          </div>
-
-        </div>
-
-        <div className="flex gap-6 overflow-x-auto px-6 scrollbar-hide">
-
-          {featuredNFTs.map((nft) => (
-            <div
-              key={nft.title}
-              className="min-w-[350px] rounded-2xl overflow-hidden border border-green-500/10 bg-zinc-900 group"
+            <Link
+              href="/marketplace"
+              className="text-sm text-zinc-500 hover:text-zinc-300 transition font-bold"
             >
-
-              <div className="h-[420px] relative overflow-hidden">
-
-                <img
-                  src={nft.image}
-                  alt={nft.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-
-              </div>
-
-              <div className="p-6">
-
-                <div className="flex items-center justify-between">
-
-                  <div>
-                    <h3 className="text-2xl font-bold">
-                      {nft.title}
-                    </h3>
-
-                    <p className="text-zinc-500 mt-1">
-                      Ritual Collection
-                    </p>
-                  </div>
-
-                  <button className="bg-green-400 text-black font-bold px-5 py-3 rounded-xl">
-                    Buy
-                  </button>
-
-                </div>
-
-              </div>
-
-            </div>
-          ))}
-
+              View all →
+            </Link>
+          </div>
         </div>
 
+        <div className="flex gap-6 overflow-x-auto px-6 pb-2 scrollbar-hide">
+          {listingsLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="min-w-[320px] h-[480px] rounded-2xl border border-[#077345]/10 bg-[#0b1f17] animate-pulse flex-shrink-0"
+              />
+            ))
+          ) : featuredListings.length > 0 ? (
+            featuredListings.map((listing: any) => (
+              <Link
+                key={listing.listingId}
+                href={`/nft/${listing.nftContract}/${listing.tokenId}`}
+                className="min-w-[320px] rounded-2xl overflow-hidden border border-[#077345]/15 bg-[#0b1f17] group flex-shrink-0 hover:border-[#077345]/40 transition"
+              >
+                <div className="h-[380px] relative overflow-hidden bg-[#0d2518]">
+                  <img
+                    src={GENESIS_PASS_IMAGE}
+                    alt={`Token #${listing.tokenId}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
+                  <div className="absolute top-4 left-4">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/50 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                      Listed
+                    </span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black">
+                        Genesis #{Number(listing.tokenId)}
+                      </h3>
+                      <p className="text-zinc-600 text-xs mt-0.5">
+                        {shortAddress(listing.seller)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-zinc-600 text-xs">Price</p>
+                      <p className="text-emerald-400 font-black">
+                        {Number(listing.price) / 1e18} RITUAL
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            /* Fallback — Genesis Pass card pag walang listings */
+            <Link
+              href={`/nft/0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067/0`}
+              className="min-w-[320px] rounded-2xl overflow-hidden border border-[#077345]/15 bg-[#0b1f17] group flex-shrink-0 hover:border-[#077345]/40 transition"
+            >
+              <div className="h-[380px] relative overflow-hidden bg-[#0d2518]">
+                <img
+                  src={GENESIS_PASS_IMAGE}
+                  alt="Ritual Genesis Pass"
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
+                <div className="absolute top-4 left-4">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/50 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Live Mint
+                  </span>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-black">Ritual Genesis Pass</h3>
+                    <p className="text-zinc-600 text-xs mt-0.5">by VastMint</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-zinc-600 text-xs">Price</p>
+                    <p className="text-emerald-400 font-black">Free</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
+        </div>
       </section>
 
       {/* TOP COLLECTIONS */}
       <section className="px-6 pb-32">
-
         <div className="max-w-7xl mx-auto">
-
-          <div className="flex flex-wrap items-center justify-between gap-6 mb-10">
-
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-green-400 uppercase tracking-[0.25em] text-sm">
-                Rankings
+              <p className="text-[#077345] uppercase tracking-[0.2em] text-xs font-bold">
+                Collections
               </p>
-
-              <h2 className="text-4xl font-black mt-3">
-                Top Collections
-              </h2>
+              <h2 className="text-4xl font-black mt-2">All Collections</h2>
             </div>
-
-            <div className="flex flex-wrap gap-3">
-
-              {["All", "30d", "7d", "1d", "1h", "15m", "5m", "1m"].map((filter) => (
-                <button
-                  key={filter}
-                  className={`px-5 py-3 rounded-xl border transition ${
-                    filter === "1d"
-                      ? "bg-green-400 text-black border-green-400"
-                      : "border-green-500/20 hover:border-green-400 hover:bg-green-500/10"
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-
-            </div>
-
+            <Link
+              href="/collections"
+              className="text-sm text-zinc-500 hover:text-zinc-300 transition font-bold"
+            >
+              View all →
+            </Link>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-green-500/10 bg-zinc-950">
-
-            <table className="w-full min-w-[1000px]">
-
-              <thead className="border-b border-green-500/10 text-zinc-500 text-sm uppercase">
-
+          <div className="overflow-x-auto rounded-2xl border border-[#077345]/15 bg-[#0b1f17]">
+            <table className="w-full min-w-[700px]">
+              <thead className="border-b border-[#077345]/10 text-zinc-600 text-xs uppercase tracking-widest">
                 <tr>
-                  <th className="text-left px-6 py-5">Collection</th>
-                  <th className="text-left">Floor Price</th>
-                  <th className="text-left">1d Change</th>
-                  <th className="text-left">Top Offer</th>
-                  <th className="text-left">1d Volume</th>
-                  <th className="text-left">1d Sales</th>
+                  <th className="text-left px-6 py-4">#</th>
+                  <th className="text-left px-4 py-4">Collection</th>
+                  <th className="text-left px-4 py-4">Supply</th>
+                  <th className="text-left px-4 py-4">Price</th>
+                  <th className="text-left px-4 py-4">Network</th>
+                  <th className="text-left px-4 py-4">Action</th>
                 </tr>
-
               </thead>
-
               <tbody>
-
-                {topCollections.map((collection) => (
-                  <tr
-                    key={collection.name}
-                    className="border-b border-green-500/5 hover:bg-green-500/5 transition"
-                  >
-
-                    <td className="px-6 py-6 font-bold">
-                      {collection.name}
-                    </td>
-
-                    <td>{collection.floor}</td>
-
-                    <td className="text-green-400 font-bold">
-                      {collection.change}
-                    </td>
-
-                    <td>{collection.offer}</td>
-
-                    <td>{collection.volume}</td>
-
-                    <td>{collection.sales}</td>
-
-                  </tr>
-                ))}
-
+                {collectionsLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <tr key={i} className="border-b border-[#077345]/5">
+                      <td colSpan={6} className="px-6 py-5">
+                        <div className="h-4 bg-zinc-800 rounded animate-pulse w-full" />
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  allCollections.map((col: any, i: number) => {
+                    const isFree = col.mintPrice === BigInt(0);
+                    const imageUrl = resolveImage(col.image);
+                    return (
+                      <tr
+                        key={col.contractAddress}
+                        className="border-b border-[#077345]/5 hover:bg-[#077345]/5 transition"
+                      >
+                        <td className="px-6 py-5 text-zinc-600 text-sm font-bold">
+                          {i + 1}
+                        </td>
+                        <td className="px-4 py-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[#0d2518]">
+                              <img
+                                src={imageUrl}
+                                alt={col.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <p className="font-black text-sm">{col.name}</p>
+                              <p className="text-zinc-600 text-xs font-mono">
+                                {col.symbol}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-5 text-sm text-zinc-300 font-bold">
+                          {Number(col.maxSupply).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-5">
+                          <span
+                            className={`text-sm font-black ${
+                              isFree ? "text-emerald-400" : "text-white"
+                            }`}
+                          >
+                            {isFree
+                              ? "Free"
+                              : `${Number(col.mintPrice) / 1e18} RITUAL`}
+                          </span>
+                        </td>
+                        <td className="px-4 py-5">
+                          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Ritual Testnet
+                          </span>
+                        </td>
+                        <td className="px-4 py-5">
+                          <Link
+                            href={`/collections/${col.slug}/mint`}
+                            className="rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-2 text-xs font-bold text-white"
+                          >
+                            Mint
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
-
             </table>
-
           </div>
 
+          <p className="text-center text-zinc-700 text-xs mt-6">
+            All collections on Ritual Testnet · Chain ID 1979
+          </p>
         </div>
-
       </section>
-
     </main>
   );
 }

@@ -1,0 +1,10 @@
+{
+  "name": "Ritual Genesis Pass",
+  "description": "The founding collection of VastMint — minted on Ritual testnet. Each pass represents early access to the native NFT ecosystem of Ritual.",
+  "image": "ipfs://bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4",
+  "attributes": [
+    { "trait_type": "Collection", "value": "Genesis" },
+    { "trait_type": "Network", "value": "Ritual Testnet" },
+    { "trait_type": "Access", "value": "Early" }
+  ]
+}
