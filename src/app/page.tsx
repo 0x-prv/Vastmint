@@ -3,14 +3,34 @@
 import Link from "next/link";
 import { useReadContract } from "wagmi";
 import {
-  VASTMINT_NFT_ADDRESS,
   VASTMINT_FACTORY_ADDRESS,
   VASTMINT_MARKETPLACE_ADDRESS,
   RITUAL_CHAIN_ID,
 } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI, VASTMINT_MARKETPLACE_ABI } from "@/lib/blockchain/abi";
 
-const EXPLORER_URL = "https://explorer.ritualfoundation.org";
+type Collection = {
+  contractAddress: `0x${string}`;
+  creator: `0x${string}`;
+  name: string;
+  symbol: string;
+  description: string;
+  image: string;
+  maxSupply: bigint;
+  mintPrice: bigint;
+  createdAt: bigint;
+  slug: string;
+};
+
+type Listing = {
+  listingId: bigint;
+  seller: `0x${string}`;
+  nftContract: `0x${string}`;
+  tokenId: bigint;
+  price: bigint;
+  active: boolean;
+  createdAt: bigint;
+};
 
 const GENESIS_PASS_IMAGE =
   "https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4";
@@ -41,9 +61,9 @@ export default function HomePage() {
     chainId: RITUAL_CHAIN_ID,
   });
 
- const allCollections = [...((collections as any[]) ?? [])];
+  const allCollections = [...((collections as Collection[] | undefined) ?? [])];
 
- const featuredListings = ((activeListings as any[]) ?? []).slice(0, 4);
+  const featuredListings = ((activeListings as Listing[] | undefined) ?? []).slice(0, 4);
 
   return (
     <main className="min-h-screen bg-[#05150f] text-white overflow-hidden">
@@ -122,7 +142,7 @@ export default function HomePage() {
               />
             ))
           ) : featuredListings.length > 0 ? (
-            featuredListings.map((listing: any) => (
+            featuredListings.map((listing) => (
               <Link
                 key={listing.listingId}
                 href={`/nft/${listing.nftContract}/${listing.tokenId}`}
@@ -238,7 +258,7 @@ export default function HomePage() {
                     </tr>
                   ))
                 ) : (
-                  allCollections.map((col: any, i: number) => {
+                  allCollections.map((col, i) => {
                     const isFree = col.mintPrice === BigInt(0);
                     const imageUrl = resolveImage(col.image);
                     return (
