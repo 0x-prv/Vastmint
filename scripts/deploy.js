@@ -1,10 +1,18 @@
 const hre = require("hardhat");
 
 async function main() {
-  const VastMintNFT = await hre.ethers.getContractFactory("VastMintNFT");
-  const nft = await VastMintNFT.deploy();
-  await nft.waitForDeployment();
-  console.log("VastMintNFT deployed to:", await nft.getAddress());
+  const VastMintFactory = await hre.ethers.getContractFactory("VastMintFactory");
+
+  const factory = await VastMintFactory.deploy();
+
+  await factory.waitForDeployment();
+
+  const factoryAddress = await factory.getAddress();
+
+  console.log("=================================");
+  console.log("VastMintFactory deployed to:");
+  console.log(factoryAddress);
+  console.log("=================================");
 }
 
 main().catch((error) => {

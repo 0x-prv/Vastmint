@@ -237,12 +237,14 @@ function MarketplacePage() {
                   className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden hover:border-[#077345]/40 transition-all duration-300"
                 >
                   {/* NFT Image */}
-                  <div className="h-52 relative overflow-hidden bg-[#0d2518]">
-                    <img
-                      src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
-                      alt={`Token #${listing.tokenId.toString()}`}
-                      className="w-full h-full object-cover"
-                    />
+                
+     <Link href={`/nft/${listing.nftContract}/${listing.tokenId}`}>
+  <div className="h-52 relative overflow-hidden bg-[#0d2518]">
+    <img
+      src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
+      alt={`Token #${listing.tokenId.toString()}`}
+      className="w-full h-full object-cover"
+    />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
                     {isMine && (
                       <div className="absolute top-3 right-3">
@@ -252,6 +254,7 @@ function MarketplacePage() {
                       </div>
                     )}
                   </div>
+                  </Link>
 
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">

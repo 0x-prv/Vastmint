@@ -95,6 +95,7 @@ export default function CollectionPage() {
     query: { enabled: !!collection?.contractAddress },
   });
 
+  
   // Fetch listings for this collection
   const { data: listings, refetch: refetchListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,

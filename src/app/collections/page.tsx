@@ -2,41 +2,18 @@
 
 import Link from "next/link";
 import { useReadContract } from "wagmi";
-import { VASTMINT_NFT_ADDRESS, VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
-import { VASTMINT_NFT_ABI, VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
+import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
+import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
-const GENESIS_PASS = {
-  name: "Ritual Genesis Pass",
-  slug: "ritual-genesis-pass",
-  description: "The founding collection of VastMint — minted on Ritual testnet. Each pass represents early access to the native NFT ecosystem of Ritual.",
-  supply: 1000,
-  price: "Free",
-  category: "Access Pass",
-  creator: "VastMint",
-  symbol: "RGP",
-  image: "https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4",
-  contractAddress: VASTMINT_NFT_ADDRESS,
-};
-
 export default function CollectionsPage() {
-  const { data: totalSupply, isLoading: supplyLoading } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "totalSupply",
-    chainId: RITUAL_CHAIN_ID,
-  });
-
   const { data: factoryCollections, isLoading: factoryLoading } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
     abi: VASTMINT_FACTORY_ABI,
     functionName: "getAllCollections",
     chainId: RITUAL_CHAIN_ID,
   });
-
-  const minted = totalSupply ? Number(totalSupply) : 0;
-  const progress = Math.round((minted / GENESIS_PASS.supply) * 100);
 
   return (
     <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
@@ -52,10 +29,20 @@ export default function CollectionsPage() {
         </div>
 
         <div className="space-y-4">
-    
-          {/* Dynamic - Factory Collections */}
           {factoryLoading && (
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] h-48 animate-pulse" />
+          )}
+
+          {!factoryLoading && factoryCollections?.length === 0 && (
+            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-16 text-center">
+              <p className="text-zinc-500 text-sm">No collections yet.</p>
+              <Link
+                href="/launchpad/create"
+                className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
+              >
+                Launch Your Collection
+              </Link>
+            </div>
           )}
 
           {factoryCollections?.map((col) => {
@@ -124,6 +111,12 @@ export default function CollectionsPage() {
                     </div>
 
                     <div className="flex gap-3 flex-wrap">
+                      <Link
+                        href={`/collections/${col.slug}`}
+                        className="flex-1 flex items-center justify-center rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-3 text-sm font-bold text-emerald-400"
+                      >
+                        View Collection
+                      </Link>
                       <Link
                         href={`/collections/${col.slug}/mint`}
                         className="flex-1 flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-3 text-sm font-bold text-white"
