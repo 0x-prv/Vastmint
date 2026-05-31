@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useReadContract, useAccount } from "wagmi";
 import {
@@ -87,12 +88,12 @@ export default function NFTDetailPage() {
       <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-zinc-500 text-sm">Collection not found.</p>
-          <a
+          <Link
             href="/collections"
             className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
           >
             Back to Collections
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -107,16 +108,16 @@ export default function NFTDetailPage() {
       <div className="max-w-7xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-zinc-600 mb-8">
-          <a href="/collections" className="hover:text-zinc-400 transition">
+          <Link href="/collections" className="hover:text-zinc-400 transition">
             Collections
-          </a>
+          </Link>
           <span>/</span>
-          <a
-            href={`/collections/ritual-genesis-pass`}
+          <Link
+            href="/collections/ritual-genesis-pass"
             className="hover:text-zinc-400 transition"
           >
             {meta.collection}
-          </a>
+          </Link>
           <span>/</span>
           <span className="text-zinc-400">#{id}</span>
         </div>
@@ -257,12 +258,12 @@ export default function NFTDetailPage() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <a
+                <Link
                   href="/collections/ritual-genesis-pass/mint"
                   className="w-full flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-4 text-sm font-bold text-white"
                 >
                   Mint Another
-                </a>
+                </Link>
                 <a
                   href={`${EXPLORER_URL}/token/${contractAddress}?a=${id}`}
                   target="_blank"

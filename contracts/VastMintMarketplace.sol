@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IOwnableNFT {
+    function owner() external view returns (address);
+}
+
 contract VastMintMarketplace is Ownable, ReentrancyGuard {
 
     uint256 public platformFeeBps = 200; // 2% platform fee
@@ -21,7 +25,7 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         uint256 createdAt;
     }
 
-    uint256 public nextListingId;
+    uint256 public nextListingId = 1;
     mapping(uint256 => Listing) public listings;
     mapping(address => mapping(uint256 => uint256)) public tokenToListingId;
 
@@ -50,15 +54,16 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
     );
 
     constructor(address _treasury) Ownable(msg.sender) {
+        require(_treasury != address(0), "Treasury required");
         treasury = _treasury;
     }
 
     function listNFT(
         address _nftContract,
         uint256 _tokenId,
-        uint256 _price,
-        address _creator
+        uint256 _price
     ) external {
+        require(_nftContract != address(0), "NFT contract required");
         require(_price > 0, "Price must be greater than 0");
         IERC721 nft = IERC721(_nftContract);
         require(nft.ownerOf(_tokenId) == msg.sender, "Not token owner");
@@ -88,7 +93,9 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         tokenToListingId[_nftContract][_tokenId] = listingId;
 
         if (contractCreator[_nftContract] == address(0)) {
-            contractCreator[_nftContract] = _creator;
+            address creator = IOwnableNFT(_nftContract).owner();
+            require(creator != address(0), "Creator required");
+            contractCreator[_nftContract] = creator;
         }
 
         emit Listed(listingId, msg.sender, _nftContract, _tokenId, _price);
@@ -99,37 +106,35 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         require(listing.active, "Listing not active");
         require(msg.value >= listing.price, "Insufficient payment");
         require(msg.sender != listing.seller, "Cannot buy your own NFT");
+        require(IERC721(listing.nftContract).ownerOf(listing.tokenId) == listing.seller, "Seller no longer owns NFT");
 
         listing.active = false;
+        delete tokenToListingId[listing.nftContract][listing.tokenId];
 
         uint256 platformFee = (listing.price * platformFeeBps) / 10000;
         uint256 royalty = (listing.price * royaltyBps) / 10000;
         uint256 sellerAmount = listing.price - platformFee - royalty;
 
-        // Transfer NFT
+        // Transfer NFT before funds; nonReentrant and listing deactivation prevent reentry purchases.
         IERC721(listing.nftContract).safeTransferFrom(
             listing.seller,
             msg.sender,
             listing.tokenId
         );
 
-        // Pay platform fee
-        payable(treasury).transfer(platformFee);
+        _sendValue(treasury, platformFee);
 
-        // Pay royalty to creator
         address creator = contractCreator[listing.nftContract];
         if (creator != address(0) && royalty > 0) {
-            payable(creator).transfer(royalty);
+            _sendValue(creator, royalty);
         } else {
             sellerAmount += royalty;
         }
 
-        // Pay seller
-        payable(listing.seller).transfer(sellerAmount);
+        _sendValue(listing.seller, sellerAmount);
 
-        // Refund excess
         if (msg.value > listing.price) {
-            payable(msg.sender).transfer(msg.value - listing.price);
+            _sendValue(msg.sender, msg.value - listing.price);
         }
 
         emit Sold(_listingId, msg.sender, listing.nftContract, listing.tokenId, listing.price);
@@ -140,18 +145,19 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         require(listing.active, "Listing not active");
         require(listing.seller == msg.sender || msg.sender == owner(), "Not authorized");
         listing.active = false;
+        delete tokenToListingId[listing.nftContract][listing.tokenId];
         emit Cancelled(_listingId, msg.sender);
     }
 
     function getActiveListings() external view returns (Listing[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < nextListingId; i++) {
+        for (uint256 i = 1; i < nextListingId; i++) {
             if (listings[i].active) count++;
         }
 
         Listing[] memory active = new Listing[](count);
         uint256 index = 0;
-        for (uint256 i = 0; i < nextListingId; i++) {
+        for (uint256 i = 1; i < nextListingId; i++) {
             if (listings[i].active) {
                 active[index++] = listings[i];
             }
@@ -161,13 +167,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
 
     function getListingsByContract(address _nftContract) external view returns (Listing[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < nextListingId; i++) {
+        for (uint256 i = 1; i < nextListingId; i++) {
             if (listings[i].active && listings[i].nftContract == _nftContract) count++;
         }
 
         Listing[] memory result = new Listing[](count);
         uint256 index = 0;
-        for (uint256 i = 0; i < nextListingId; i++) {
+        for (uint256 i = 1; i < nextListingId; i++) {
             if (listings[i].active && listings[i].nftContract == _nftContract) {
                 result[index++] = listings[i];
             }
@@ -177,13 +183,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
 
     function getListingsBySeller(address _seller) external view returns (Listing[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < nextListingId; i++) {
+        for (uint256 i = 1; i < nextListingId; i++) {
             if (listings[i].active && listings[i].seller == _seller) count++;
         }
 
         Listing[] memory result = new Listing[](count);
         uint256 index = 0;
-        for (uint256 i = 0; i < nextListingId; i++) {
+        for (uint256 i = 1; i < nextListingId; i++) {
             if (listings[i].active && listings[i].seller == _seller) {
                 result[index++] = listings[i];
             }
@@ -192,16 +198,26 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
     }
 
     function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Treasury required");
         treasury = _treasury;
     }
 
     function setPlatformFee(uint256 _bps) external onlyOwner {
         require(_bps <= 1000, "Max 10%");
+        require(_bps + royaltyBps <= 10000, "Fees exceed price");
         platformFeeBps = _bps;
     }
 
     function setRoyalty(uint256 _bps) external onlyOwner {
         require(_bps <= 1000, "Max 10%");
+        require(platformFeeBps + _bps <= 10000, "Fees exceed price");
         royaltyBps = _bps;
+    }
+
+    function _sendValue(address to, uint256 amount) private {
+        if (amount == 0) return;
+        require(to != address(0), "Payment recipient required");
+        (bool success, ) = payable(to).call{value: amount}("");
+        require(success, "Payment failed");
     }
 }

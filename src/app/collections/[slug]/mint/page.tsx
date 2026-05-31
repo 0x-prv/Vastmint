@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   useAccount,
@@ -56,21 +56,16 @@ export default function MintPage() {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const isPending =
-    mintState === "pending" ||
-    mintState === "switching" ||
-    mintState === "confirming";
-
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && mintState === "confirming" },
   });
 
-  useEffect(() => {
-    if (txConfirmed && mintState === "confirming") {
-      setMintState("success");
-    }
-  }, [txConfirmed, mintState]);
+  const displayMintState = txConfirmed && mintState === "confirming" ? "success" : mintState;
+  const isPending =
+    displayMintState === "pending" ||
+    displayMintState === "switching" ||
+    displayMintState === "confirming";
 
   async function handleMint() {
     if (!address) return;
@@ -243,7 +238,7 @@ export default function MintPage() {
             </div>
 
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-7">
-              {mintState === "success" && txHash ? (
+              {displayMintState === "success" && txHash ? (
                 <div className="flex flex-col items-center text-center py-2">
                   <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -322,7 +317,7 @@ export default function MintPage() {
                       <span className="font-black text-emerald-400">Gas Only</span>
                     </div>
                   </div>
-                  {mintState === "error" && errorMsg && (
+                  {displayMintState === "error" && errorMsg && (
                     <div className="mb-4 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3">
                       <p className="text-red-400 text-sm">{errorMsg}</p>
                     </div>
@@ -348,11 +343,11 @@ export default function MintPage() {
                     )}
                     {!isConnected
                       ? "Connect Wallet to Mint"
-                      : mintState === "switching"
+                      : displayMintState === "switching"
                       ? "Switching Network..."
-                      : mintState === "pending"
+                      : displayMintState === "pending"
                       ? "Confirm in Wallet..."
-                      : mintState === "confirming"
+                      : displayMintState === "confirming"
                       ? "Confirming Transaction..."
                       : isWrongNetwork
                       ? "Switch to Ritual Testnet"

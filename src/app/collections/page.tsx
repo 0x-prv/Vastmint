@@ -2,41 +2,19 @@
 
 import Link from "next/link";
 import { useReadContract } from "wagmi";
-import { VASTMINT_NFT_ADDRESS, VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
-import { VASTMINT_NFT_ABI, VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
+import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
+import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
-const GENESIS_PASS = {
-  name: "Ritual Genesis Pass",
-  slug: "ritual-genesis-pass",
-  description: "The founding collection of VastMint — minted on Ritual testnet. Each pass represents early access to the native NFT ecosystem of Ritual.",
-  supply: 1000,
-  price: "Free",
-  category: "Access Pass",
-  creator: "VastMint",
-  symbol: "RGP",
-  image: "https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4",
-  contractAddress: VASTMINT_NFT_ADDRESS,
-};
 
 export default function CollectionsPage() {
-  const { data: totalSupply, isLoading: supplyLoading } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "totalSupply",
-    chainId: RITUAL_CHAIN_ID,
-  });
-
   const { data: factoryCollections, isLoading: factoryLoading } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
     abi: VASTMINT_FACTORY_ABI,
     functionName: "getAllCollections",
     chainId: RITUAL_CHAIN_ID,
   });
-
-  const minted = totalSupply ? Number(totalSupply) : 0;
-  const progress = Math.round((minted / GENESIS_PASS.supply) * 100);
 
   return (
     <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">

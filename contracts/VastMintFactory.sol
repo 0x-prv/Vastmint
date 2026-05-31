@@ -42,6 +42,7 @@ contract VastMintFactory {
         require(slugToAddress[_slug] == address(0), "Slug already taken");
         require(_maxSupply > 0, "Supply must be greater than 0");
         require(bytes(_name).length > 0, "Name required");
+        require(bytes(_symbol).length > 0, "Symbol required");
         require(bytes(_slug).length > 0, "Slug required");
 
         VastMintNFT newCollection = new VastMintNFT(

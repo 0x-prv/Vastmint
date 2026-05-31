@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useAccount, useReadContract, useWriteContract, useChainId, useSwitchChain, useWaitForTransactionReceipt } from "wagmi";
 import { VASTMINT_MARKETPLACE_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
@@ -41,11 +41,13 @@ function MarketplacePage() {
     query: { enabled: !!txHash && buyState === "confirming" },
   });
 
-  if (txConfirmed && buyState === "confirming") {
-    setBuyState("success");
-    setBuyingId(null);
-    refetch();
-  }
+  const displayBuyState = txConfirmed && buyState === "confirming" ? "success" : buyState;
+
+  useEffect(() => {
+    if (txConfirmed && buyState === "confirming") {
+      void refetch();
+    }
+  }, [txConfirmed, buyState, refetch]);
 
   async function handleBuy(listingId: bigint, price: bigint) {
     if (!address || !isConnected) return;
@@ -117,7 +119,7 @@ function MarketplacePage() {
         {searchQuery && (
           <div className="mb-6 flex items-center gap-3">
             <p className="text-zinc-400 text-sm">
-              Search results for: <span className="text-white font-bold">"{searchQuery}"</span>
+              Search results for: <span className="text-white font-bold">&ldquo;{searchQuery}&rdquo;</span>
             </p>
             <Link
               href="/marketplace"
@@ -228,7 +230,7 @@ function MarketplacePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedListings.map((listing) => {
               const isMine = address?.toLowerCase() === listing.seller.toLowerCase();
-              const isBuying = buyingId === listing.listingId && buyState !== "idle" && buyState !== "error";
+              const isBuying = buyingId === listing.listingId && displayBuyState !== "idle" && displayBuyState !== "error" && displayBuyState !== "success";
               const priceInRitual = Number(listing.price) / 1e18;
 
               return (
@@ -309,7 +311,7 @@ function MarketplacePage() {
                         {!isConnected
                           ? "Connect Wallet"
                           : isBuying
-                          ? buyState === "switching" ? "Switching..." : buyState === "pending" ? "Confirm..." : "Confirming..."
+                          ? displayBuyState === "switching" ? "Switching..." : displayBuyState === "pending" ? "Confirm..." : "Confirming..."
                           : `Buy for ${priceInRitual.toFixed(4)} RITUAL`}
                       </button>
                     )}

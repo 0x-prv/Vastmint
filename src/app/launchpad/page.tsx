@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
+import { parseEther } from "viem";
 import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
-const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT!;
-const PINATA_GATEWAY = "https://gateway.pinata.cloud";
 
 const steps = ["Details", "Image", "Deploy", "Success"];
 
@@ -48,12 +47,13 @@ export default function LaunchpadCreatePage() {
   const [deployedSlug, setDeployedSlug] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
 
-  const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
-    hash: txHash,
-    query: { enabled: !!txHash },
-  });
-
   const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   // Validation per step
   const step0Valid = name.trim().length > 0 && symbol.trim().length > 0 && description.trim().length > 0 && Number(maxSupply) > 0;
@@ -79,9 +79,8 @@ export default function LaunchpadCreatePage() {
       formData.append("file", imageFile);
       formData.append("pinataMetadata", JSON.stringify({ name: `${name}-image` }));
 
-      const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+      const res = await fetch("/api/pinata/file", {
         method: "POST",
-        headers: { Authorization: `Bearer ${PINATA_JWT}` },
         body: formData,
       });
 
@@ -92,7 +91,7 @@ export default function LaunchpadCreatePage() {
       setIpfsImageUrl(ipfsUrl);
     } catch (err) {
       console.error(err);
-      setUploadError("Upload failed. Check your Pinata JWT.");
+      setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -109,9 +108,7 @@ export default function LaunchpadCreatePage() {
       }
 
       const slug = slugify(name);
-      const priceWei = mintPrice && parseFloat(mintPrice) > 0
-        ? BigInt(Math.floor(parseFloat(mintPrice) * 1e18))
-        : BigInt(0);
+      const priceWei = mintPrice && Number(mintPrice) > 0 ? parseEther(mintPrice) : 0n;
 
       const tx = await writeContractAsync({
         address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
@@ -331,7 +328,7 @@ export default function LaunchpadCreatePage() {
                 {ipfsImageUrl && (
                   <div className="flex justify-center mb-2">
                     <img
-                      src={`${PINATA_GATEWAY}/ipfs/${ipfsImageUrl.replace("ipfs://", "")}`}
+                      src={`https://ipfs.io/ipfs/${ipfsImageUrl.replace("ipfs://", "")}`}
                       alt="Collection"
                       className="w-20 h-20 rounded-xl object-cover"
                     />
