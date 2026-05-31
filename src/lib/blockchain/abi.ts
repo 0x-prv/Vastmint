@@ -32,6 +32,13 @@ export const VASTMINT_NFT_ABI = [
   },
   {
     type: "function",
+    name: "mintPrice",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
     name: "name",
     stateMutability: "view",
     inputs: [],

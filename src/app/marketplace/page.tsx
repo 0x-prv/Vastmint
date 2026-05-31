@@ -6,6 +6,7 @@ import { useAccount, useReadContract, useWriteContract, useChainId, useSwitchCha
 import { VASTMINT_MARKETPLACE_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_MARKETPLACE_ABI } from "@/lib/blockchain/abi";
 import { useSearchParams } from "next/navigation";
+import { formatEther } from "viem";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 const filters = ["All", "Cheapest", "Most Recent"];
@@ -29,11 +30,15 @@ function MarketplacePage() {
 
   const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
 
-  const { data: listings, isLoading, refetch } = useReadContract({
+  const { data: listings, isLoading, isRefetching, error: listingsError, refetch } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
     abi: VASTMINT_MARKETPLACE_ABI,
     functionName: "getActiveListings",
     chainId: RITUAL_CHAIN_ID,
+    query: {
+      refetchInterval: 10_000,
+      refetchOnWindowFocus: true,
+    },
   });
 
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
@@ -177,6 +182,13 @@ function MarketplacePage() {
           </div>
         )}
 
+        {listingsError && (
+          <div className="mb-6 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3">
+            <p className="text-red-400 text-sm">Unable to load marketplace listings from {VASTMINT_MARKETPLACE_ADDRESS}.</p>
+            <p className="text-red-300/70 text-xs mt-1">{listingsError.shortMessage ?? listingsError.message}</p>
+          </div>
+        )}
+
         {/* Loading */}
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -225,13 +237,17 @@ function MarketplacePage() {
           </div>
         )}
 
+        {isRefetching && !isLoading && (
+          <p className="mb-4 text-zinc-600 text-xs">Refreshing marketplace listings...</p>
+        )}
+
         {/* Listings Grid */}
         {!isLoading && sortedListings.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedListings.map((listing) => {
               const isMine = address?.toLowerCase() === listing.seller.toLowerCase();
               const isBuying = buyingId === listing.listingId && displayBuyState !== "idle" && displayBuyState !== "error" && displayBuyState !== "success";
-              const priceInRitual = Number(listing.price) / 1e18;
+              const priceInRitual = formatEther(listing.price);
 
               return (
                 <div
@@ -278,7 +294,7 @@ function MarketplacePage() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-zinc-600 text-xs">Price</p>
-                        <p className="text-emerald-400 font-black text-lg">{priceInRitual.toFixed(4)} RITUAL</p>
+                        <p className="text-emerald-400 font-black text-lg">{priceInRitual} RITUAL</p>
                       </div>
                       <div className="text-right">
                         <p className="text-zinc-600 text-xs">Listed</p>
@@ -312,7 +328,7 @@ function MarketplacePage() {
                           ? "Connect Wallet"
                           : isBuying
                           ? displayBuyState === "switching" ? "Switching..." : displayBuyState === "pending" ? "Confirm..." : "Confirming..."
-                          : `Buy for ${priceInRitual.toFixed(4)} RITUAL`}
+                          : `Buy for ${priceInRitual} RITUAL`}
                       </button>
                     )}
                   </div>

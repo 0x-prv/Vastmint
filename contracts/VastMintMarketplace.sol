@@ -73,11 +73,8 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
             "Marketplace not approved"
         );
 
-        // Cancel existing listing if any
         uint256 existingId = tokenToListingId[_nftContract][_tokenId];
-        if (existingId != 0 && listings[existingId].active) {
-            listings[existingId].active = false;
-        }
+        require(existingId == 0 || !listings[existingId].active, "NFT already listed");
 
         uint256 listingId = nextListingId++;
         listings[listingId] = Listing({
@@ -152,13 +149,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
     function getActiveListings() external view returns (Listing[] memory) {
         uint256 count = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
-            if (listings[i].active) count++;
+            if (_isListingSellable(listings[i])) count++;
         }
 
         Listing[] memory active = new Listing[](count);
         uint256 index = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
-            if (listings[i].active) {
+            if (_isListingSellable(listings[i])) {
                 active[index++] = listings[i];
             }
         }
@@ -168,13 +165,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
     function getListingsByContract(address _nftContract) external view returns (Listing[] memory) {
         uint256 count = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
-            if (listings[i].active && listings[i].nftContract == _nftContract) count++;
+            if (listings[i].nftContract == _nftContract && _isListingSellable(listings[i])) count++;
         }
 
         Listing[] memory result = new Listing[](count);
         uint256 index = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
-            if (listings[i].active && listings[i].nftContract == _nftContract) {
+            if (listings[i].nftContract == _nftContract && _isListingSellable(listings[i])) {
                 result[index++] = listings[i];
             }
         }
@@ -184,13 +181,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
     function getListingsBySeller(address _seller) external view returns (Listing[] memory) {
         uint256 count = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
-            if (listings[i].active && listings[i].seller == _seller) count++;
+            if (listings[i].seller == _seller && _isListingSellable(listings[i])) count++;
         }
 
         Listing[] memory result = new Listing[](count);
         uint256 index = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
-            if (listings[i].active && listings[i].seller == _seller) {
+            if (listings[i].seller == _seller && _isListingSellable(listings[i])) {
                 result[index++] = listings[i];
             }
         }
@@ -212,6 +209,29 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         require(_bps <= 1000, "Max 10%");
         require(platformFeeBps + _bps <= 10000, "Fees exceed price");
         royaltyBps = _bps;
+    }
+
+    function _isListingSellable(Listing storage listing) private view returns (bool) {
+        if (!listing.active) return false;
+
+        IERC721 nft = IERC721(listing.nftContract);
+        try nft.ownerOf(listing.tokenId) returns (address tokenOwner) {
+            if (tokenOwner != listing.seller) return false;
+        } catch {
+            return false;
+        }
+
+        try nft.getApproved(listing.tokenId) returns (address approved) {
+            if (approved == address(this)) return true;
+        } catch {
+            return false;
+        }
+
+        try nft.isApprovedForAll(listing.seller, address(this)) returns (bool approvedForAll) {
+            return approvedForAll;
+        } catch {
+            return false;
+        }
     }
 
     function _sendValue(address to, uint256 amount) private {
