@@ -3,8 +3,9 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract VastMintNFT is ERC721URIStorage, Ownable {
+contract VastMintNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
 
     uint256 public nextTokenId;
     uint256 public maxSupply;
@@ -32,14 +33,14 @@ contract VastMintNFT is ERC721URIStorage, Ownable {
     function mintNFT(
         address to,
         string memory tokenURI
-    ) public payable returns (uint256) {
+    ) public payable nonReentrant returns (uint256) {
         require(nextTokenId < maxSupply, "Max supply reached");
         require(msg.value >= mintPrice, "Insufficient payment");
 
         uint256 tokenId = nextTokenId;
+        nextTokenId++;
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, tokenURI);
-        nextTokenId++;
 
         return tokenId;
     }
@@ -51,6 +52,7 @@ contract VastMintNFT is ERC721URIStorage, Ownable {
     function withdraw() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "Nothing to withdraw");
-        payable(owner()).transfer(balance);
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        require(success, "Withdraw failed");
     }
 }

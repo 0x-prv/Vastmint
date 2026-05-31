@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useWaitForTransactionReceipt } from "wagmi";
-import { decodeEventLog } from "viem";
+import { parseEther } from "viem";
 import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
@@ -40,33 +40,25 @@ export default function LaunchpadCreatePage() {
   const [imageCid, setImageCid] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
-  const isPending = deployState === "uploading" || deployState === "switching" || deployState === "pending" || deployState === "confirming";
+  const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
 
-  const { isSuccess: txConfirmed, data: receipt } = useWaitForTransactionReceipt({
+  const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && deployState === "confirming" },
   });
+  const displayDeployState = txConfirmed && deployState === "confirming" ? "success" : deployState;
+  const displayStep = displayDeployState === "success" ? 3 : step;
+  const isPending =
+    displayDeployState === "uploading" ||
+    displayDeployState === "switching" ||
+    displayDeployState === "pending" ||
+    displayDeployState === "confirming";
 
-  // Auto-advance to success when tx confirmed
-  if (txConfirmed && deployState === "confirming" && receipt) {
-    // Parse CollectionCreated event to get slug
-    for (const log of receipt.logs) {
-      try {
-        const decoded = decodeEventLog({
-          abi: VASTMINT_FACTORY_ABI,
-          data: log.data,
-          topics: log.topics,
-        });
-        if (decoded.eventName === "CollectionCreated") {
-          const args = decoded.args as { slug: string };
-          setDeployedSlug(args.slug);
-        }
-      } catch {}
-    }
-    setDeployState("success");
-    setStep(3);
-  }
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -85,11 +77,8 @@ export default function LaunchpadCreatePage() {
       formData.append("file", imageFile);
       formData.append("pinataMetadata", JSON.stringify({ name: `${name}-image` }));
 
-      const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+      const res = await fetch("/api/pinata/file", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT}`,
-        },
         body: formData,
       });
 
@@ -100,7 +89,7 @@ export default function LaunchpadCreatePage() {
       return cid;
     } catch (err) {
       console.error(err);
-      setErrorMsg("Image upload failed. Check your Pinata JWT.");
+      setErrorMsg("Image upload failed. Please try again.");
       setDeployState("error");
       return null;
     }
@@ -130,11 +119,10 @@ export default function LaunchpadCreatePage() {
         ],
       };
 
-      const metaRes = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
+      const metaRes = await fetch("/api/pinata/json", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT}`,
         },
         body: JSON.stringify({
           pinataContent: metadata,
@@ -143,8 +131,7 @@ export default function LaunchpadCreatePage() {
       });
 
       if (!metaRes.ok) throw new Error("Metadata upload failed");
-      const metaData = await metaRes.json();
-      const metaCid = metaData.IpfsHash;
+      await metaRes.json();
 
       // Switch network if needed
       if (isWrongNetwork) {
@@ -155,7 +142,7 @@ export default function LaunchpadCreatePage() {
       // Deploy via Factory
       setDeployState("pending");
       const slug = slugify(name);
-      const mintPriceWei = BigInt(Math.floor(parseFloat(price) * 1e18));
+      const mintPriceWei = price && Number(price) > 0 ? parseEther(price) : 0n;
 
       const tx = await writeContractAsync({
         address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
@@ -212,12 +199,12 @@ export default function LaunchpadCreatePage() {
               <button
                 key={item}
                 onClick={() => {
-                  if (index < step) setStep(index);
+                  if (index < displayStep) setStep(index);
                 }}
                 className={`rounded-2xl border px-3 py-3 text-sm transition ${
-                  step === index
+                  displayStep === index
                     ? "border-[#077345] bg-[#077345]/20 text-white"
-                    : index < step
+                    : index < displayStep
                     ? "border-[#077345]/30 bg-[#077345]/10 text-emerald-400"
                     : "border-white/10 bg-white/[0.03] text-white/40"
                 }`}
@@ -229,7 +216,7 @@ export default function LaunchpadCreatePage() {
           </div>
 
           {/* Step 0 - Details */}
-          {step === 0 && (
+          {displayStep === 0 && (
             <div className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm text-white/70">Collection Name</label>
@@ -290,7 +277,7 @@ export default function LaunchpadCreatePage() {
           )}
 
           {/* Step 1 - Upload */}
-          {step === 1 && (
+          {displayStep === 1 && (
             <div className="space-y-4">
               <input
                 ref={fileInputRef}
@@ -329,7 +316,7 @@ export default function LaunchpadCreatePage() {
           )}
 
           {/* Step 2 - Deploy */}
-          {step === 2 && (
+          {displayStep === 2 && (
             <div className="space-y-4">
               {/* Summary */}
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 space-y-3">
@@ -360,7 +347,7 @@ export default function LaunchpadCreatePage() {
                 </div>
               )}
 
-              {deployState === "error" && errorMsg && (
+              {displayDeployState === "error" && errorMsg && (
                 <div className="rounded-xl border border-red-800/30 bg-red-900/10 px-4 py-3">
                   <p className="text-red-400 text-sm">{errorMsg}</p>
                 </div>
@@ -385,13 +372,13 @@ export default function LaunchpadCreatePage() {
                 )}
                 {!isConnected
                   ? "Connect Wallet to Deploy"
-                  : deployState === "uploading"
+                  : displayDeployState === "uploading"
                   ? "Uploading to IPFS..."
-                  : deployState === "switching"
+                  : displayDeployState === "switching"
                   ? "Switching Network..."
-                  : deployState === "pending"
+                  : displayDeployState === "pending"
                   ? "Confirm in Wallet..."
-                  : deployState === "confirming"
+                  : displayDeployState === "confirming"
                   ? "Confirming Transaction..."
                   : isWrongNetwork
                   ? "Switch to Ritual Testnet"
@@ -405,7 +392,7 @@ export default function LaunchpadCreatePage() {
           )}
 
           {/* Step 3 - Success */}
-          {step === 3 && (
+          {displayStep === 3 && (
             <div className="flex flex-col items-center text-center py-4">
               <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -442,19 +429,19 @@ export default function LaunchpadCreatePage() {
           )}
 
           {/* Navigation */}
-          {step < 3 && (
+          {displayStep < 3 && (
             <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-5">
               <button
                 onClick={() => setStep((c) => Math.max(c - 1, 0))}
-                disabled={step === 0}
+                disabled={displayStep === 0}
                 className="rounded-2xl border border-white/10 px-5 py-3 text-sm text-white/70 hover:text-white disabled:opacity-30 transition"
               >
                 Previous
               </button>
-              {step < 2 && (
+              {displayStep < 2 && (
                 <button
                   onClick={() => setStep((c) => Math.min(c + 1, 2))}
-                  disabled={step === 0 ? !canProceedStep0 : step === 1 ? !canProceedStep1 : false}
+                  disabled={displayStep === 0 ? !canProceedStep0 : displayStep === 1 ? !canProceedStep1 : false}
                   className="rounded-2xl bg-[#077345] px-5 py-3 text-sm font-medium text-white hover:bg-[#066039] disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   Continue

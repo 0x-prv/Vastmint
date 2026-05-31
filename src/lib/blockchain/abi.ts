@@ -2,7 +2,7 @@ export const VASTMINT_NFT_ABI = [
   {
     type: "function",
     name: "mintNFT",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
       { name: "to", type: "address" },
       { name: "tokenURI", type: "string" },
@@ -26,6 +26,13 @@ export const VASTMINT_NFT_ABI = [
   {
     type: "function",
     name: "totalSupply",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "mintPrice",
     stateMutability: "view",
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
@@ -316,7 +323,6 @@ export const VASTMINT_MARKETPLACE_ABI = [
       { internalType: "address", name: "_nftContract", type: "address" },
       { internalType: "uint256", name: "_tokenId", type: "uint256" },
       { internalType: "uint256", name: "_price", type: "uint256" },
-      { internalType: "address", name: "_creator", type: "address" },
     ],
     name: "listNFT",
     outputs: [],

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { parseEther } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -67,8 +68,6 @@ export default function DashboardPage() {
     query: { enabled: !!address },
   });
 
-  // Fetch token IDs owned (check tokens 0-99)
-  const tokenIds: bigint[] = [];
   const balance = nftBalance ? Number(nftBalance) : 0;
 
   async function handleList(tokenId: bigint) {
@@ -91,7 +90,7 @@ export default function DashboardPage() {
 
       // Step 2: List NFT
       setListingState("listing");
-      const priceWei = BigInt(Math.floor(parseFloat(listPrice) * 1e18));
+      const priceWei = parseEther(listPrice);
       await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
@@ -100,7 +99,6 @@ export default function DashboardPage() {
           VASTMINT_NFT_ADDRESS as `0x${string}`,
           tokenId,
           priceWei,
-          address,
         ],
       });
 
@@ -202,7 +200,7 @@ export default function DashboardPage() {
           <div>
             {balance === 0 ? (
               <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">You don't own any VastMint NFTs yet.</p>
+                <p className="text-zinc-500 text-sm">You don&apos;t own any VastMint NFTs yet.</p>
                 <Link
                   href="/collections"
                   className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
@@ -350,7 +348,7 @@ export default function DashboardPage() {
           <div>
             {!myCollections || myCollections.length === 0 ? (
               <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">You haven't deployed any collections yet.</p>
+                <p className="text-zinc-500 text-sm">You haven&apos;t deployed any collections yet.</p>
                 <Link
                   href="/launchpad/create"
                   className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"

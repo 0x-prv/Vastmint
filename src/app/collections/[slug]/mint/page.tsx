@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { formatEther } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -25,7 +26,6 @@ const COLLECTION = {
   description:
     "The founding collection of VastMint — minted on Ritual testnet. Each pass represents early access to the native NFT ecosystem of Ritual.",
   supply: 1000,
-  price: "Free",
   phases: [
     { label: "Whitelist Mint", status: "done" },
     { label: "Public Mint", status: "live" },
@@ -34,6 +34,13 @@ const COLLECTION = {
 };
 
 type MintState = "idle" | "switching" | "pending" | "confirming" | "success" | "error";
+
+function formatMintPrice(price?: bigint) {
+  if (price === undefined) return "Loading...";
+  if (price === 0n) return "Free";
+
+  return `${formatEther(price)} RITUAL`;
+}
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();
@@ -48,29 +55,33 @@ export default function MintPage() {
     chainId: RITUAL_CHAIN_ID,
   });
 
+  const { data: mintPrice } = useReadContract({
+    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "mintPrice",
+    chainId: RITUAL_CHAIN_ID,
+  });
+
   const minted = totalSupply ? Number(totalSupply) : 0;
   const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
   const progress = Math.round((minted / COLLECTION.supply) * 100);
+  const mintPriceLabel = formatMintPrice(mintPrice);
+  const isMintPriceLoaded = mintPrice !== undefined;
 
   const [mintState, setMintState] = useState<MintState>("idle");
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const isPending =
-    mintState === "pending" ||
-    mintState === "switching" ||
-    mintState === "confirming";
 
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && mintState === "confirming" },
   });
 
-  useEffect(() => {
-    if (txConfirmed && mintState === "confirming") {
-      setMintState("success");
-    }
-  }, [txConfirmed, mintState]);
+  const displayMintState = txConfirmed && mintState === "confirming" ? "success" : mintState;
+  const isPending =
+    displayMintState === "pending" ||
+    displayMintState === "switching" ||
+    displayMintState === "confirming";
 
   async function handleMint() {
     if (!address) return;
@@ -84,12 +95,19 @@ export default function MintPage() {
         return;
       }
 
+      if (!isMintPriceLoaded) {
+        setErrorMsg("Mint price is still loading. Please try again in a moment.");
+        setMintState("error");
+        return;
+      }
+
       setMintState("pending");
       const tx = await writeContractAsync({
         address: VASTMINT_NFT_ADDRESS as `0x${string}`,
         abi: VASTMINT_NFT_ABI,
         functionName: "mintNFT",
         args: [address, TOKEN_URI],
+        value: mintPrice,
       });
 
       setTxHash(tx);
@@ -223,7 +241,7 @@ export default function MintPage() {
                 {[
                   { label: "Total Supply", value: COLLECTION.supply.toLocaleString() },
                   { label: "Minted", value: minted.toLocaleString() },
-                  { label: "Mint Price", value: COLLECTION.price },
+                  { label: "Mint Price", value: mintPriceLabel },
                 ].map(({ label, value }) => (
                   <div key={label} className="rounded-xl bg-black/30 border border-white/5 p-4 text-center">
                     <p className="text-zinc-600 text-xs">{label}</p>
@@ -243,7 +261,7 @@ export default function MintPage() {
             </div>
 
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-7">
-              {mintState === "success" && txHash ? (
+              {displayMintState === "success" && txHash ? (
                 <div className="flex flex-col items-center text-center py-2">
                   <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -307,7 +325,7 @@ export default function MintPage() {
                   <div className="rounded-xl border border-white/5 bg-black/20 p-4 mb-5">
                     <div className="flex justify-between text-sm mb-3">
                       <span className="text-zinc-500">Mint Price</span>
-                      <span className="font-bold text-emerald-400">Free</span>
+                      <span className={`font-bold ${mintPrice === 0n ? "text-emerald-400" : "text-white"}`}>{mintPriceLabel}</span>
                     </div>
                     <div className="flex justify-between text-sm mb-3">
                       <span className="text-zinc-500">Platform Fee</span>
@@ -319,21 +337,23 @@ export default function MintPage() {
                     </div>
                     <div className="border-t border-white/5 mt-3 pt-3 flex justify-between text-sm">
                       <span className="text-zinc-400 font-bold">Total</span>
-                      <span className="font-black text-emerald-400">Gas Only</span>
+                      <span className={`font-black ${mintPrice === 0n ? "text-emerald-400" : "text-white"}`}>
+                        {mintPrice === 0n ? "Gas Only" : mintPriceLabel}
+                      </span>
                     </div>
                   </div>
-                  {mintState === "error" && errorMsg && (
+                  {displayMintState === "error" && errorMsg && (
                     <div className="mb-4 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3">
                       <p className="text-red-400 text-sm">{errorMsg}</p>
                     </div>
                   )}
                   <button
                     onClick={handleMint}
-                    disabled={!isConnected || isPending}
+                    disabled={!isConnected || isPending || (!isWrongNetwork && !isMintPriceLoaded)}
                     className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
                       !isConnected
                         ? "bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5"
-                        : isPending
+                        : isPending || (!isWrongNetwork && !isMintPriceLoaded)
                         ? "bg-[#077345]/60 text-white/70 cursor-not-allowed"
                         : isWrongNetwork
                         ? "bg-red-900/60 hover:bg-red-800/60 text-white border border-red-700/30"
@@ -348,14 +368,16 @@ export default function MintPage() {
                     )}
                     {!isConnected
                       ? "Connect Wallet to Mint"
-                      : mintState === "switching"
+                      : displayMintState === "switching"
                       ? "Switching Network..."
-                      : mintState === "pending"
+                      : displayMintState === "pending"
                       ? "Confirm in Wallet..."
-                      : mintState === "confirming"
+                      : displayMintState === "confirming"
                       ? "Confirming Transaction..."
                       : isWrongNetwork
                       ? "Switch to Ritual Testnet"
+                      : !isMintPriceLoaded
+                      ? "Loading Mint Price..."
                       : "Mint NFT"}
                   </button>
                   <p className="text-center text-zinc-700 text-xs mt-4">

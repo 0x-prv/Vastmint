@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IOwnableNFT {
+    function owner() external view returns (address);
+}
+
 contract VastMintMarketplace is Ownable, ReentrancyGuard {
 
     uint256 public platformFeeBps = 200;
@@ -21,8 +25,12 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         uint256 createdAt;
     }
 
+<<<<<<< HEAD
     uint256 public nextListingId = 1; // ✅ starts at 1, avoids zero-value collision
 
+=======
+    uint256 public nextListingId = 1;
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
     mapping(uint256 => Listing) public listings;
     mapping(address => mapping(uint256 => uint256)) public tokenToListingId;
     mapping(address => address) public contractCreator;
@@ -49,7 +57,11 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
     );
 
     constructor(address _treasury) Ownable(msg.sender) {
+<<<<<<< HEAD
         require(_treasury != address(0), "Invalid treasury");
+=======
+        require(_treasury != address(0), "Treasury required");
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         treasury = _treasury;
     }
 
@@ -59,6 +71,7 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         uint256 _tokenId,
         uint256 _price
     ) external {
+        require(_nftContract != address(0), "NFT contract required");
         require(_price > 0, "Price must be greater than 0");
         IERC721 nft = IERC721(_nftContract);
         require(nft.ownerOf(_tokenId) == msg.sender, "Not token owner");
@@ -90,7 +103,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
 
         // ✅ Derive creator from NFT owner at time of first listing
         if (contractCreator[_nftContract] == address(0)) {
+<<<<<<< HEAD
             contractCreator[_nftContract] = msg.sender;
+=======
+            address creator = IOwnableNFT(_nftContract).owner();
+            require(creator != address(0), "Creator required");
+            contractCreator[_nftContract] = creator;
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         }
 
         emit Listed(listingId, msg.sender, _nftContract, _tokenId, _price);
@@ -101,6 +120,7 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         require(listing.active, "Listing not active");
         require(msg.value >= listing.price, "Insufficient payment");
         require(msg.sender != listing.seller, "Cannot buy your own NFT");
+        require(IERC721(listing.nftContract).ownerOf(listing.tokenId) == listing.seller, "Seller no longer owns NFT");
 
         // ✅ Validate seller still owns the NFT
         require(
@@ -109,6 +129,7 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         );
 
         listing.active = false;
+        delete tokenToListingId[listing.nftContract][listing.tokenId];
 
         // ✅ Clear stale mapping on buy
         tokenToListingId[listing.nftContract][listing.tokenId] = 0;
@@ -117,13 +138,18 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         uint256 royalty = (listing.price * royaltyBps) / 10000;
         uint256 sellerAmount = listing.price - platformFee - royalty;
 
+<<<<<<< HEAD
         // Transfer NFT first
+=======
+        // Transfer NFT before funds; nonReentrant and listing deactivation prevent reentry purchases.
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         IERC721(listing.nftContract).safeTransferFrom(
             listing.seller,
             msg.sender,
             listing.tokenId
         );
 
+<<<<<<< HEAD
         // ✅ .call() instead of .transfer()
         (bool feeSent, ) = payable(treasury).call{value: platformFee}("");
         require(feeSent, "Platform fee transfer failed");
@@ -132,17 +158,31 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         if (creator != address(0) && royalty > 0) {
             (bool royaltySent, ) = payable(creator).call{value: royalty}("");
             if (!royaltySent) sellerAmount += royalty;
+=======
+        _sendValue(treasury, platformFee);
+
+        address creator = contractCreator[listing.nftContract];
+        if (creator != address(0) && royalty > 0) {
+            _sendValue(creator, royalty);
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         } else {
             sellerAmount += royalty;
         }
 
+<<<<<<< HEAD
         (bool sellerSent, ) = payable(listing.seller).call{value: sellerAmount}("");
         require(sellerSent, "Seller payment failed");
+=======
+        _sendValue(listing.seller, sellerAmount);
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
 
-        // Refund excess
         if (msg.value > listing.price) {
+<<<<<<< HEAD
             (bool refundSent, ) = payable(msg.sender).call{value: msg.value - listing.price}("");
             require(refundSent, "Refund failed");
+=======
+            _sendValue(msg.sender, msg.value - listing.price);
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         }
 
         emit Sold(_listingId, msg.sender, listing.nftContract, listing.tokenId, listing.price);
@@ -154,10 +194,14 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         require(listing.seller == msg.sender || msg.sender == owner(), "Not authorized");
 
         listing.active = false;
+<<<<<<< HEAD
 
         // ✅ Clear stale mapping on cancel
         tokenToListingId[listing.nftContract][listing.tokenId] = 0;
 
+=======
+        delete tokenToListingId[listing.nftContract][listing.tokenId];
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         emit Cancelled(_listingId, msg.sender);
     }
 
@@ -169,7 +213,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         Listing[] memory active = new Listing[](count);
         uint256 index = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
+<<<<<<< HEAD
             if (listings[i].active) active[index++] = listings[i];
+=======
+            if (listings[i].active) {
+                active[index++] = listings[i];
+            }
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         }
         return active;
     }
@@ -182,7 +232,13 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         Listing[] memory result = new Listing[](count);
         uint256 index = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
+<<<<<<< HEAD
             if (listings[i].active && listings[i].nftContract == _nftContract) result[index++] = listings[i];
+=======
+            if (listings[i].active && listings[i].nftContract == _nftContract) {
+                result[index++] = listings[i];
+            }
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         }
         return result;
     }
@@ -195,23 +251,42 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
         Listing[] memory result = new Listing[](count);
         uint256 index = 0;
         for (uint256 i = 1; i < nextListingId; i++) {
+<<<<<<< HEAD
             if (listings[i].active && listings[i].seller == _seller) result[index++] = listings[i];
+=======
+            if (listings[i].active && listings[i].seller == _seller) {
+                result[index++] = listings[i];
+            }
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         }
         return result;
     }
 
     function setTreasury(address _treasury) external onlyOwner {
+<<<<<<< HEAD
         require(_treasury != address(0), "Invalid treasury");
+=======
+        require(_treasury != address(0), "Treasury required");
+>>>>>>> ca7794c30e078197dad2db40d191818eac882a6f
         treasury = _treasury;
     }
 
     function setPlatformFee(uint256 _bps) external onlyOwner {
         require(_bps <= 1000, "Max 10%");
+        require(_bps + royaltyBps <= 10000, "Fees exceed price");
         platformFeeBps = _bps;
     }
 
     function setRoyalty(uint256 _bps) external onlyOwner {
         require(_bps <= 1000, "Max 10%");
+        require(platformFeeBps + _bps <= 10000, "Fees exceed price");
         royaltyBps = _bps;
+    }
+
+    function _sendValue(address to, uint256 amount) private {
+        if (amount == 0) return;
+        require(to != address(0), "Payment recipient required");
+        (bool success, ) = payable(to).call{value: amount}("");
+        require(success, "Payment failed");
     }
 }

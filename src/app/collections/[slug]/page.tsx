@@ -36,6 +36,18 @@ type Collection = {
   slug: string;
 };
 
+type Listing = {
+  listingId: bigint;
+  seller: `0x${string}`;
+  nftContract: `0x${string}`;
+  tokenId: bigint;
+  price: bigint;
+  active: boolean;
+  createdAt: bigint;
+};
+
+type Filter = "all" | "listed" | "cheapest";
+
 function CancelButton({ listingId, onSuccess }: { listingId: bigint; onSuccess: () => void }) {
   const { writeContractAsync } = useWriteContract();
   const [cancelling, setCancelling] = useState(false);
@@ -73,7 +85,7 @@ export default function CollectionPage() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const [buying, setBuying] = useState<bigint | null>(null);
-  const [filter, setFilter] = useState<"all" | "listed" | "cheapest">("all");
+  const [filter, setFilter] = useState<Filter>("all");
 
   // Fetch collection data
   const { data, isLoading } = useReadContract({
@@ -101,7 +113,7 @@ export default function CollectionPage() {
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
     abi: VASTMINT_MARKETPLACE_ABI,
     functionName: "getListingsByContract",
-    args: [collection?.contractAddress!],
+    args: [collection?.contractAddress ?? "0x0000000000000000000000000000000000000000"],
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: !!collection?.contractAddress },
   });
@@ -111,7 +123,7 @@ export default function CollectionPage() {
   const imageUrl = collection ? resolveImage(collection.image) : null;
   const isFree = collection?.mintPrice === BigInt(0);
 
-  const activeListings = (listings as any[])?.filter((l) => l.active) ?? [];
+  const activeListings = ((listings as Listing[] | undefined) ?? []).filter((l) => l.active);
   const floorPrice = activeListings.length > 0
     ? Math.min(...activeListings.map((l) => Number(l.price) / 1e18))
     : null;
@@ -265,14 +277,14 @@ export default function CollectionPage() {
 
         {/* Filters */}
         <div className="flex gap-2 mb-6">
-          {[
+          {([
             { key: "all", label: "All" },
             { key: "listed", label: "Listed" },
             { key: "cheapest", label: "Cheapest First" },
-          ].map(({ key, label }) => (
+          ] satisfies { key: Filter; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setFilter(key as any)}
+              onClick={() => setFilter(key)}
               className={`rounded-xl px-4 py-2 text-sm font-medium transition border ${
                 filter === key
                   ? "border-[#077345] bg-[#077345]/20 text-white"

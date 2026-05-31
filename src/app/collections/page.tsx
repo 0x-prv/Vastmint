@@ -7,6 +7,7 @@ import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
+
 export default function CollectionsPage() {
   const { data: factoryCollections, isLoading: factoryLoading } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
@@ -29,20 +30,10 @@ export default function CollectionsPage() {
         </div>
 
         <div className="space-y-4">
+    
+          {/* Dynamic - Factory Collections */}
           {factoryLoading && (
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] h-48 animate-pulse" />
-          )}
-
-          {!factoryLoading && factoryCollections?.length === 0 && (
-            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-16 text-center">
-              <p className="text-zinc-500 text-sm">No collections yet.</p>
-              <Link
-                href="/launchpad/create"
-                className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
-              >
-                Launch Your Collection
-              </Link>
-            </div>
           )}
 
           {factoryCollections?.map((col) => {
@@ -111,12 +102,6 @@ export default function CollectionsPage() {
                     </div>
 
                     <div className="flex gap-3 flex-wrap">
-                      <Link
-                        href={`/collections/${col.slug}`}
-                        className="flex-1 flex items-center justify-center rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-3 text-sm font-bold text-emerald-400"
-                      >
-                        View Collection
-                      </Link>
                       <Link
                         href={`/collections/${col.slug}/mint`}
                         className="flex-1 flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-3 text-sm font-bold text-white"
