@@ -69,9 +69,21 @@ export default function DashboardPage() {
   });
 
   const balance = nftBalance ? Number(nftBalance) : 0;
+  const activeListings = (myListings ?? []).filter(
+    (listing) => listing.active && listing.nftContract.toLowerCase() === VASTMINT_NFT_ADDRESS.toLowerCase(),
+  );
+  const activeListingByTokenId = new Map(
+    activeListings.map((listing) => [listing.tokenId.toString(), listing]),
+  );
 
   async function handleList(tokenId: bigint) {
     if (!address || !listPrice || parseFloat(listPrice) <= 0) return;
+    if (activeListingByTokenId.has(tokenId.toString())) {
+      setErrorMsg(`Token #${tokenId.toString()} already has an active listing.`);
+      setListingState("error");
+      return;
+    }
+
     setErrorMsg(null);
     setListingState("approving");
 
@@ -248,27 +260,44 @@ export default function DashboardPage() {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: balance }).map((_, i) => (
-                    <div key={i} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
-                      <div className="h-40 bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
-                        <img
-                          src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
-                          alt="NFT"
-                          className="w-20 h-20 rounded-xl object-cover"
-                        />
+                  {Array.from({ length: balance }).map((_, i) => {
+                    const tokenId = BigInt(i);
+                    const activeListing = activeListingByTokenId.get(tokenId.toString());
+
+                    return (
+                      <div key={i} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
+                        <div className="h-40 bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
+                          <img
+                            src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
+                            alt="NFT"
+                            className="w-20 h-20 rounded-xl object-cover"
+                          />
+                          {activeListing && (
+                            <span className="absolute top-3 right-3 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-2 py-0.5 text-xs font-bold text-emerald-400">
+                              Listed
+                            </span>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <p className="text-white font-bold text-sm">Ritual Genesis Pass</p>
+                          <p className="text-zinc-600 text-xs mt-0.5">Token #{i}</p>
+                          {activeListing ? (
+                            <div className="mt-3 rounded-xl border border-white/5 bg-black/20 px-4 py-2">
+                              <p className="text-zinc-600 text-xs">Active Listing</p>
+                              <p className="text-emerald-400 font-black text-sm">{(Number(activeListing.price) / 1e18).toFixed(4)} RITUAL</p>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setListingTokenId(tokenId); setListingState("idle"); setErrorMsg(null); }}
+                              className="mt-3 w-full rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-2 text-sm font-bold text-emerald-400"
+                            >
+                              List for Sale
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="p-4">
-                        <p className="text-white font-bold text-sm">Ritual Genesis Pass</p>
-                        <p className="text-zinc-600 text-xs mt-0.5">Token #{i}</p>
-                        <button
-                          onClick={() => { setListingTokenId(BigInt(i)); setListingState("idle"); setErrorMsg(null); }}
-                          className="mt-3 w-full rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-2 text-sm font-bold text-emerald-400"
-                        >
-                          List for Sale
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
