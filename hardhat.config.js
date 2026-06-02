@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+require("dotenv").config();
 require("@nomicfoundation/hardhat-toolbox");
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;

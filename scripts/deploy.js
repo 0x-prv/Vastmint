@@ -1,20 +1,16 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 const hre = require("hardhat");
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
-  const VastMintNFT = await hre.ethers.getContractFactory("VastMintNFT");
-  const nft = await VastMintNFT.deploy(
-    "Ritual Genesis Pass",
-    "RGP",
-    "The founding collection of VastMint — minted on Ritual testnet.",
-    "ipfs://bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4",
-    1000,
-    0,
-    deployer.address,
+  console.log("Deploying with:", deployer.address);
+
+  const Marketplace = await hre.ethers.getContractFactory("VastMintMarketplace");
+  const marketplace = await Marketplace.deploy(
+    deployer.address  // treasury address — pwede mong palitan ng ibang address
   );
-  await nft.waitForDeployment();
-  console.log("VastMintNFT deployed to:", await nft.getAddress());
+
+  await marketplace.waitForDeployment();
+  console.log("VastMintMarketplace deployed to:", await marketplace.getAddress());
 }
 
 main().catch((error) => {

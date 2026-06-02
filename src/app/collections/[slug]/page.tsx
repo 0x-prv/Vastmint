@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useReadContract, useAccount, useWriteContract } from "wagmi";
+import {
+  useReadContract,
+  useAccount,
+  useWriteContract,
+  useChainId,
+  useSwitchChain,
+  usePublicClient,
+} from "wagmi";
 import { useState } from "react";
 import {
   VASTMINT_FACTORY_ADDRESS,
@@ -48,19 +55,27 @@ type Listing = {
 
 type Filter = "all" | "listed" | "cheapest";
 
-function CancelButton({ listingId, onSuccess }: { listingId: bigint; onSuccess: () => void }) {
+function CancelButton({
+  listingId,
+  onSuccess,
+}: {
+  listingId: bigint;
+  onSuccess: () => void;
+}) {
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const [cancelling, setCancelling] = useState(false);
 
   async function handleCancel() {
     setCancelling(true);
     try {
-      await writeContractAsync({
+      const tx = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
         functionName: "cancelListing",
         args: [listingId],
       });
+      await publicClient!.waitForTransactionReceipt({ hash: tx });
       onSuccess();
     } catch (err) {
       console.error(err);
@@ -84,6 +99,9 @@ export default function CollectionPage() {
   const { slug } = useParams<{ slug: string }>();
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
   const [buying, setBuying] = useState<bigint | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -107,13 +125,15 @@ export default function CollectionPage() {
     query: { enabled: !!collection?.contractAddress },
   });
 
-  
   // Fetch listings for this collection
   const { data: listings, refetch: refetchListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
     abi: VASTMINT_MARKETPLACE_ABI,
     functionName: "getListingsByContract",
-    args: [collection?.contractAddress ?? "0x0000000000000000000000000000000000000000"],
+    args: [
+      collection?.contractAddress ??
+        "0x0000000000000000000000000000000000000000",
+    ],
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: !!collection?.contractAddress },
   });
@@ -123,20 +143,20 @@ export default function CollectionPage() {
   const imageUrl = collection ? resolveImage(collection.image) : null;
   const isFree = collection?.mintPrice === BigInt(0);
 
-  const activeListings = ((listings as Listing[] | undefined) ?? []).filter((l) => l.active);
-  const floorPrice = activeListings.length > 0
-    ? Math.min(...activeListings.map((l) => Number(l.price) / 1e18))
-    : null;
+  const activeListings = (
+    (listings as Listing[] | undefined) ?? []
+  ).filter((l) => l.active);
+  const floorPrice =
+    activeListings.length > 0
+      ? Math.min(...activeListings.map((l) => Number(l.price) / 1e18))
+      : null;
 
-  // Build token grid — show all minted tokens
   const tokenIds = Array.from({ length: minted }, (_, i) => i);
 
-  // Get listing per tokenId
   const listingByTokenId = new Map(
     activeListings.map((l) => [Number(l.tokenId), l])
   );
 
-  // Filter
   let displayTokens = tokenIds;
   if (filter === "listed") {
     displayTokens = tokenIds.filter((id) => listingByTokenId.has(id));
@@ -154,13 +174,17 @@ export default function CollectionPage() {
     if (!address) return;
     setBuying(listingId);
     try {
-      await writeContractAsync({
+      if (chainId !== RITUAL_CHAIN_ID) {
+        await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      }
+      const tx = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
         functionName: "buyNFT",
         args: [listingId],
         value: price,
       });
+      await publicClient!.waitForTransactionReceipt({ hash: tx });
       refetchListings();
     } catch (err) {
       console.error(err);
@@ -185,7 +209,10 @@ export default function CollectionPage() {
       <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-zinc-500 text-sm">Collection not found.</p>
-          <Link href="/collections" className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white">
+          <Link
+            href="/collections"
+            className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
+          >
             Back to Collections
           </Link>
         </div>
@@ -212,7 +239,11 @@ export default function CollectionPage() {
         <div className="relative -mt-16 mb-8 flex items-end gap-5 flex-wrap">
           <div className="w-28 h-28 rounded-2xl overflow-hidden border-4 border-[#05150f] bg-[#0b1f17] flex-shrink-0">
             {imageUrl ? (
-              <img src={imageUrl} alt={collection.name} className="w-full h-full object-cover" />
+              <img
+                src={imageUrl}
+                alt={collection.name}
+                className="w-full h-full object-cover"
+              />
             ) : (
               <div className="w-full h-full bg-[#077345]/20" />
             )}
@@ -226,7 +257,8 @@ export default function CollectionPage() {
               </span>
             </div>
             <p className="text-zinc-500 text-sm mt-1">
-              by {collection.creator.slice(0, 6)}...{collection.creator.slice(-4)} · ERC-721 · Ritual Testnet
+              by {collection.creator.slice(0, 6)}...
+              {collection.creator.slice(-4)} · ERC-721 · Ritual Testnet
             </p>
           </div>
 
@@ -244,7 +276,12 @@ export default function CollectionPage() {
               className="rounded-xl border border-white/10 hover:bg-white/5 transition px-5 py-2.5 text-sm font-bold text-zinc-400 flex items-center gap-1.5"
             >
               Explorer
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 12 12"
+                fill="currentColor"
+              >
                 <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
               </svg>
             </a>
@@ -261,14 +298,34 @@ export default function CollectionPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Floor Price", value: floorPrice !== null ? `${floorPrice.toFixed(4)} RITUAL` : "—" },
+            {
+              label: "Floor Price",
+              value:
+                floorPrice !== null
+                  ? `${floorPrice.toFixed(4)} RITUAL`
+                  : "—",
+            },
             { label: "Listed", value: activeListings.length.toString() },
             { label: "Minted", value: `${minted} / ${maxSupply}` },
-            { label: "Mint Price", value: isFree ? "Free" : `${Number(collection.mintPrice) / 1e18} RITUAL` },
+            {
+              label: "Mint Price",
+              value: isFree
+                ? "Free"
+                : `${Number(collection.mintPrice) / 1e18} RITUAL`,
+            },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] px-5 py-4 text-center">
+            <div
+              key={label}
+              className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] px-5 py-4 text-center"
+            >
               <p className="text-zinc-600 text-xs">{label}</p>
-              <p className={`font-black text-lg mt-1 ${label === "Floor Price" || label === "Mint Price" ? "text-emerald-400" : "text-white"}`}>
+              <p
+                className={`font-black text-lg mt-1 ${
+                  label === "Floor Price" || label === "Mint Price"
+                    ? "text-emerald-400"
+                    : "text-white"
+                }`}
+              >
                 {value}
               </p>
             </div>
@@ -277,11 +334,13 @@ export default function CollectionPage() {
 
         {/* Filters */}
         <div className="flex gap-2 mb-6">
-          {([
-            { key: "all", label: "All" },
-            { key: "listed", label: "Listed" },
-            { key: "cheapest", label: "Cheapest First" },
-          ] satisfies { key: Filter; label: string }[]).map(({ key, label }) => (
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "listed", label: "Listed" },
+              { key: "cheapest", label: "Cheapest First" },
+            ] satisfies { key: Filter; label: string }[]
+          ).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setFilter(key)}
@@ -325,16 +384,19 @@ export default function CollectionPage() {
             {displayTokens.map((tokenId) => {
               const listing = listingByTokenId.get(tokenId);
               const isListed = !!listing;
-              const isMine = listing && address?.toLowerCase() === listing.seller.toLowerCase();
+              const isMine =
+                listing &&
+                address?.toLowerCase() === listing.seller.toLowerCase();
               const isBuying = listing && buying === listing.listingId;
-              const priceInRitual = listing ? Number(listing.price) / 1e18 : null;
+              const priceInRitual = listing
+                ? Number(listing.price) / 1e18
+                : null;
 
               return (
                 <div
                   key={tokenId}
                   className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] overflow-hidden hover:border-[#077345]/40 transition-all duration-200 group"
                 >
-                  {/* Image */}
                   <Link href={`/nft/${collection.contractAddress}/${tokenId}`}>
                     <div className="aspect-square relative overflow-hidden bg-[#0d2518]">
                       {imageUrl ? (
@@ -345,7 +407,9 @@ export default function CollectionPage() {
                         />
                       ) : (
                         <div className="w-full h-full bg-[#077345]/10 flex items-center justify-center">
-                          <span className="text-zinc-700 text-xs font-mono">#{tokenId}</span>
+                          <span className="text-zinc-700 text-xs font-mono">
+                            #{tokenId}
+                          </span>
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition" />
@@ -366,9 +430,10 @@ export default function CollectionPage() {
                     </div>
                   </Link>
 
-                  {/* Info */}
                   <div className="p-3">
-                    <Link href={`/nft/${collection.contractAddress}/${tokenId}`}>
+                    <Link
+                      href={`/nft/${collection.contractAddress}/${tokenId}`}
+                    >
                       <p className="text-white font-bold text-sm truncate hover:text-emerald-400 transition">
                         #{tokenId}
                       </p>
@@ -380,17 +445,37 @@ export default function CollectionPage() {
                           {priceInRitual.toFixed(4)} RITUAL
                         </p>
                         {isMine ? (
-                          <CancelButton listingId={listing.listingId} onSuccess={refetchListings} />
+                          <CancelButton
+                            listingId={listing.listingId}
+                            onSuccess={refetchListings}
+                          />
                         ) : (
                           <button
-                            onClick={() => handleBuy(listing.listingId, listing.price)}
+                            onClick={() =>
+                              handleBuy(listing.listingId, listing.price)
+                            }
                             disabled={!address || !!isBuying}
                             className="mt-2 w-full py-2 rounded-xl bg-[#077345] hover:bg-[#066039] disabled:opacity-50 transition text-xs font-bold text-white flex items-center justify-center gap-1.5"
                           >
                             {isBuying && (
-                              <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              <svg
+                                className="animate-spin w-3 h-3"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8v8H4z"
+                                />
                               </svg>
                             )}
                             {isBuying ? "Buying..." : "Buy Now"}
