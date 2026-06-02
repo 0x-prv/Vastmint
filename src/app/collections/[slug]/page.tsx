@@ -116,15 +116,6 @@ export default function CollectionPage() {
 
   const collection = data as Collection | undefined;
 
-  // Fetch total supply
-  const { data: totalSupply } = useReadContract({
-    address: collection?.contractAddress,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "totalSupply",
-    chainId: RITUAL_CHAIN_ID,
-    query: { enabled: !!collection?.contractAddress },
-  });
-
   // Fetch listings for this collection
   const { data: listings, refetch: refetchListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,

@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatEther, parseAbiItem, parseEther } from "viem";
 import {
   useAccount,
   useReadContract,
-  useReadContracts,
   useWriteContract,
   usePublicClient,
   useChainId,
@@ -89,39 +88,19 @@ export default function DashboardPage() {
 
   const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
 
-  // Fetch NFT balance and token ownership. balanceOf alone cannot identify which token IDs the wallet owns.
-  const { data: nftBalance } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "balanceOf",
-    args: [address!],
+  const { data: allCollectionsData } = useReadContract({
+    address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
+    abi: VASTMINT_FACTORY_ABI,
+    functionName: "getAllCollections",
     chainId: RITUAL_CHAIN_ID,
   });
 
-  const { data: totalSupply } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "totalSupply",
-    chainId: RITUAL_CHAIN_ID,
-  });
+  const allCollections = useMemo(() => (allCollectionsData as Collection[] | undefined) ?? [], [allCollectionsData]);
 
-  const mintedTokenIds = useMemo(() => {
-    const minted = totalSupply ? Number(totalSupply) : 0;
-    return Array.from({ length: minted }, (_, tokenId) => BigInt(tokenId));
-  }, [totalSupply]);
+  const collectionByContract = useMemo(() => {
+    return new Map(allCollections.map((col) => [col.contractAddress.toLowerCase(), col]));
+  }, [allCollections]);
 
-  const { data: tokenOwners } = useReadContracts({
-    contracts: mintedTokenIds.map((tokenId) => ({
-      address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-      abi: VASTMINT_NFT_ABI,
-      functionName: "ownerOf",
-      args: [tokenId],
-      chainId: RITUAL_CHAIN_ID,
-    })),
-    query: { enabled: !!address && mintedTokenIds.length > 0 },
-  });
-
-  // Fetch my listings
   const { data: myListings, refetch: refetchListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
     abi: VASTMINT_MARKETPLACE_ABI,
@@ -140,21 +119,9 @@ export default function DashboardPage() {
     query: { enabled: !!address },
   });
 
-  const ownershipLoaded = mintedTokenIds.length === 0 || !!tokenOwners;
-  const ownedTokenIds = ownershipLoaded
-    ? mintedTokenIds.filter((tokenId, index) => {
-      const ownerResult = tokenOwners?.[index];
-      return ownerResult?.status === "success" &&
-        typeof ownerResult.result === "string" &&
-        ownerResult.result.toLowerCase() === address?.toLowerCase();
-    })
-    : [];
-  const balance = ownershipLoaded ? ownedTokenIds.length : nftBalance ? Number(nftBalance) : 0;
-  const activeListings = (myListings ?? []).filter(
-    (listing) => listing.active && listing.nftContract.toLowerCase() === VASTMINT_NFT_ADDRESS.toLowerCase(),
-  );
-  const activeListingByTokenId = new Map(
-    activeListings.map((listing) => [listing.tokenId.toString(), listing]),
+  const activeListings = ((myListings as Listing[] | undefined) ?? []).filter((l) => l.active);
+  const activeListingByToken = new Map(
+    activeListings.map((l) => [listingKey(l.nftContract, l.tokenId), l])
   );
 
   useEffect(() => {
@@ -195,18 +162,18 @@ export default function DashboardPage() {
             if (a.blockNumber !== b.blockNumber) return a.blockNumber < b.blockNumber ? -1 : 1;
             return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
           });
-          const ownedTokenIds = new Set<string>();
 
+          const ownedSet = new Set<string>();
           for (const event of events) {
             const from = event.args.from?.toLowerCase();
             const to = event.args.to?.toLowerCase();
             const tokenId = event.args.tokenId;
             if (tokenId === undefined) continue;
-            if (from === wallet) ownedTokenIds.delete(tokenId.toString());
-            if (to === wallet) ownedTokenIds.add(tokenId.toString());
+            if (from === wallet) ownedSet.delete(tokenId.toString());
+            if (to === wallet) ownedSet.add(tokenId.toString());
           }
 
-          for (const tokenId of ownedTokenIds) {
+          for (const tokenId of ownedSet) {
             nextOwned.push({
               contractAddress: collection.contractAddress,
               tokenId: BigInt(tokenId),
@@ -216,8 +183,8 @@ export default function DashboardPage() {
         }
 
         nextOwned.sort((a, b) => {
-          const collectionCompare = a.collection.name.localeCompare(b.collection.name);
-          if (collectionCompare !== 0) return collectionCompare;
+          const cc = a.collection.name.localeCompare(b.collection.name);
+          if (cc !== 0) return cc;
           return a.tokenId < b.tokenId ? -1 : a.tokenId > b.tokenId ? 1 : 0;
         });
 
@@ -226,7 +193,7 @@ export default function DashboardPage() {
         console.error(err);
         if (!cancelled) {
           setOwnedNfts([]);
-          setOwnershipError("Unable to scan owned NFTs from collection Transfer events.");
+          setOwnershipError("Unable to scan owned NFTs.");
         }
       } finally {
         if (!cancelled) setOwnershipLoading(false);
@@ -234,9 +201,7 @@ export default function DashboardPage() {
     }
 
     void scanOwnedTokens();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [address, publicClient, allCollections]);
 
   async function handleList(contractAddress: `0x${string}`, tokenId: bigint) {
@@ -251,17 +216,11 @@ export default function DashboardPage() {
     setListingState("approving");
 
     try {
-      if (isWrongNetwork) {
-        await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
-      }
+      if (isWrongNetwork) await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      if (!publicClient) throw new Error("Ritual public client unavailable");
 
-      if (!publicClient) {
-        throw new Error("Ritual public client unavailable");
-      }
-
-      // Step 1: Approve marketplace for every NFT owned by this wallet.
       const approvalHash = await writeContractAsync({
-        address: VASTMINT_NFT_ADDRESS as `0x${string}`,
+        address: contractAddress,
         abi: VASTMINT_NFT_ABI,
         functionName: "setApprovalForAll",
         args: [VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`, true],
@@ -269,18 +228,12 @@ export default function DashboardPage() {
       });
       await publicClient.waitForTransactionReceipt({ hash: approvalHash });
 
-      // Step 2: List NFT after approval is mined so the marketplace approval check passes.
       setListingState("listing");
-      const priceWei = parseEther(listPrice);
       const listingHash = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
         functionName: "listNFT",
-        args: [
-          VASTMINT_NFT_ADDRESS as `0x${string}`,
-          tokenId,
-          priceWei,
-        ],
+        args: [contractAddress, tokenId, parseEther(listPrice)],
         chainId: RITUAL_CHAIN_ID,
       });
       await publicClient.waitForTransactionReceipt({ hash: listingHash });
@@ -292,16 +245,14 @@ export default function DashboardPage() {
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Listing failed";
-      const short = message.includes("rejected") || message.includes("denied")
-        ? "Transaction rejected."
-        : "Listing failed. Try again.";
-      setErrorMsg(short);
+      setErrorMsg(message.includes("rejected") || message.includes("denied") ? "Transaction rejected." : "Listing failed. Try again.");
       setListingState("error");
     }
   }
 
   async function handleCancel(listingId: bigint) {
     try {
+      if (!publicClient) return;
       const hash = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
@@ -309,6 +260,7 @@ export default function DashboardPage() {
         args: [listingId],
         chainId: RITUAL_CHAIN_ID,
       });
+      await publicClient.waitForTransactionReceipt({ hash });
       await refetchListings();
     } catch (err) {
       console.error(err);
@@ -342,9 +294,7 @@ export default function DashboardPage() {
             <h1 className="text-4xl font-black">My VastMint</h1>
             <p className="text-zinc-500 text-sm mt-2">Manage NFTs, listings, and deployed collections across VastMint factory collections.</p>
           </div>
-          <Link href="/collections" className="rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-2 text-sm font-bold text-emerald-400">
-            Mint More
-          </Link>
+          <Link href="/collections" className="rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-2 text-sm font-bold text-emerald-400">Mint More</Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -370,18 +320,23 @@ export default function DashboardPage() {
 
         {activeTab === "My NFTs" && (
           <div>
-            {!ownershipLoaded ? (
-              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">Scanning owned token IDs…</p>
+            {ownershipError && (
+              <div className="mb-4 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3">
+                <p className="text-red-400 text-sm">{ownershipError}</p>
               </div>
-            ) : balance === 0 ? (
+            )}
+            {ownershipLoading ? (
+              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
+                <p className="text-zinc-500 text-sm">Scanning owned NFTs across factory collections…</p>
+              </div>
+            ) : ownedNfts.length === 0 ? (
               <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
                 <p className="text-zinc-500 text-sm">You don&apos;t own any VastMint NFTs yet.</p>
                 <Link href="/collections" className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white">Mint Your First NFT</Link>
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-zinc-500 text-sm">You own {ownedNfts.length} NFT{ownedNfts.length > 1 ? "s" : ""} across {allCollections.length} factory collection{allCollections.length === 1 ? "" : "s"}.</p>
+                <p className="text-zinc-500 text-sm">You own {ownedNfts.length} NFT{ownedNfts.length > 1 ? "s" : ""} across {new Set(ownedNfts.map(n => n.contractAddress)).size} collection{new Set(ownedNfts.map(n => n.contractAddress)).size > 1 ? "s" : ""}.</p>
 
                 {listingDraft && (
                   <div className="rounded-2xl border border-[#077345]/30 bg-[#0b1f17] p-5 space-y-4">
@@ -399,26 +354,21 @@ export default function DashboardPage() {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {ownedTokenIds.map((tokenId) => {
-                    const activeListing = activeListingByTokenId.get(tokenId.toString());
-
+                  {ownedNfts.map((nft) => {
+                    const activeListing = activeListingByToken.get(listingKey(nft.contractAddress, nft.tokenId));
+                    const imageUrl = resolveIpfs(nft.collection.image);
+                    const key = listingKey(nft.contractAddress, nft.tokenId);
                     return (
-                      <div key={tokenId.toString()} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
-                        <div className="h-40 bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
-                          <img
-                            src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
-                            alt="NFT"
-                            className="w-20 h-20 rounded-xl object-cover"
-                          />
-                          {activeListing && (
-                            <span className="absolute top-3 right-3 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-2 py-0.5 text-xs font-bold text-emerald-400">
-                              Listed
-                            </span>
-                          )}
-                        </div>
+                      <div key={key} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
+                        <Link href={`/nft/${nft.contractAddress}/${nft.tokenId.toString()}`}>
+                          <div className="h-40 bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
+                            {imageUrl ? <img src={imageUrl} alt={nft.collection.name} className="w-full h-full object-cover" /> : <div className="text-zinc-700 font-mono text-xs">#{nft.tokenId.toString()}</div>}
+                            {activeListing && <span className="absolute top-3 right-3 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-2 py-0.5 text-xs font-bold text-emerald-400">Listed</span>}
+                          </div>
+                        </Link>
                         <div className="p-4">
-                          <p className="text-white font-bold text-sm">Ritual Genesis Pass</p>
-                          <p className="text-zinc-600 text-xs mt-0.5">Token #{tokenId.toString()}</p>
+                          <p className="text-white font-bold text-sm">{nft.collection.name}</p>
+                          <p className="text-zinc-600 text-xs mt-0.5">Token #{nft.tokenId.toString()} · {nft.collection.symbol}</p>
                           {activeListing ? (
                             <div className="mt-3 rounded-xl border border-white/5 bg-black/20 px-4 py-2">
                               <p className="text-zinc-600 text-xs">Active Listing</p>
