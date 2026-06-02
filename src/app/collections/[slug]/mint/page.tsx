@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { formatEther } from "viem";
 import {
   useAccount,
@@ -13,101 +14,144 @@ import {
 } from "wagmi";
 
 import {
-  VASTMINT_NFT_ADDRESS,
+  VASTMINT_FACTORY_ADDRESS,
   RITUAL_CHAIN_ID,
 } from "@/lib/blockchain/contracts";
-import { VASTMINT_NFT_ABI } from "@/lib/blockchain/abi";
+import { VASTMINT_FACTORY_ABI, VASTMINT_NFT_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
-const TOKEN_URI = "ipfs://bafkreiachcnnaenraymtan7vk3zi7f4wzeatrvhn747qiusypsjj4f73eu";
 
-const COLLECTION = {
-  name: "Ritual Genesis Pass",
-  description:
-    "The founding collection of VastMint — minted on Ritual testnet. Each pass represents early access to the native NFT ecosystem of Ritual.",
-  supply: 1000,
-  phases: [
-    { label: "Whitelist Mint", status: "done" },
-    { label: "Public Mint", status: "live" },
-    { label: "Reveal", status: "soon" },
-  ],
+type Collection = {
+  contractAddress: `0x${string}`;
+  creator: `0x${string}`;
+  name: string;
+  symbol: string;
+  description: string;
+  image: string;
+  maxSupply: bigint;
+  mintPrice: bigint;
+  createdAt: bigint;
+  slug: string;
 };
 
-type MintState = "idle" | "switching" | "pending" | "confirming" | "success" | "error";
+type MintState = "idle" | "uploading" | "switching" | "pending" | "confirming" | "success" | "error";
+
+function resolveIpfs(uri?: string | null) {
+  if (!uri) return null;
+  if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.replace("ipfs://", "")}`;
+  return uri;
+}
 
 function formatMintPrice(price?: bigint) {
   if (price === undefined) return "Loading...";
   if (price === 0n) return "Free";
-
   return `${formatEther(price)} RITUAL`;
 }
 
+async function pinTokenMetadata(collection: Collection, tokenId: number) {
+  const metadata = {
+    name: `${collection.name} #${tokenId}`,
+    description: collection.description,
+    image: collection.image,
+    attributes: [
+      { trait_type: "Collection", value: collection.name },
+      { trait_type: "Symbol", value: collection.symbol },
+      { trait_type: "Network", value: "Ritual" },
+    ],
+  };
+
+  const response = await fetch("/api/pinata/json", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      pinataContent: metadata,
+      pinataMetadata: { name: `${collection.slug}-${tokenId}-metadata` },
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || typeof data.IpfsHash !== "string") {
+    throw new Error("Metadata upload failed");
+  }
+
+  return `ipfs://${data.IpfsHash}`;
+}
+
 export default function MintPage() {
+  const { slug } = useParams<{ slug: string }>();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
-  const { data: totalSupply } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "totalSupply",
-    chainId: RITUAL_CHAIN_ID,
-  });
-
-  const { data: mintPrice } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "mintPrice",
-    chainId: RITUAL_CHAIN_ID,
-  });
-
-  const minted = totalSupply ? Number(totalSupply) : 0;
-  const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
-  const progress = Math.round((minted / COLLECTION.supply) * 100);
-  const mintPriceLabel = formatMintPrice(mintPrice);
-  const isMintPriceLoaded = mintPrice !== undefined;
-
   const [mintState, setMintState] = useState<MintState>("idle");
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { data: collection, isLoading: collectionLoading, error: collectionError } = useReadContract({
+    address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
+    abi: VASTMINT_FACTORY_ABI,
+    functionName: "getCollectionBySlug",
+    args: [slug],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!slug },
+  });
+
+  const typedCollection = collection as Collection | undefined;
+
+  const { data: totalSupply, refetch: refetchSupply } = useReadContract({
+    address: typedCollection?.contractAddress,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "totalSupply",
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!typedCollection?.contractAddress },
+  });
+
+  const minted = totalSupply ? Number(totalSupply) : 0;
+  const maxSupply = typedCollection ? Number(typedCollection.maxSupply) : 0;
+  const progress = maxSupply > 0 ? Math.min(100, Math.round((minted / maxSupply) * 100)) : 0;
+  const mintPrice = typedCollection?.mintPrice;
+  const mintPriceLabel = formatMintPrice(mintPrice);
+  const imageUrl = resolveIpfs(typedCollection?.image);
+  const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
+  const isSoldOut = maxSupply > 0 && minted >= maxSupply;
+  const nextTokenId = minted;
 
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && mintState === "confirming" },
   });
 
+  useEffect(() => {
+    if (txConfirmed && mintState === "confirming") {
+      void refetchSupply();
+    }
+  }, [txConfirmed, mintState, refetchSupply]);
+
   const displayMintState = txConfirmed && mintState === "confirming" ? "success" : mintState;
-  const isPending =
-    displayMintState === "pending" ||
-    displayMintState === "switching" ||
-    displayMintState === "confirming";
+  const isPending = ["uploading", "switching", "pending", "confirming"].includes(displayMintState);
 
   async function handleMint() {
-    if (!address) return;
+    if (!address || !typedCollection || mintPrice === undefined || isSoldOut) return;
     setErrorMsg(null);
 
     try {
       if (isWrongNetwork) {
         setMintState("switching");
         await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
-        setMintState("idle");
-        return;
       }
 
-      if (!isMintPriceLoaded) {
-        setErrorMsg("Mint price is still loading. Please try again in a moment.");
-        setMintState("error");
-        return;
-      }
+      setMintState("uploading");
+      const tokenURI = await pinTokenMetadata(typedCollection, nextTokenId);
 
       setMintState("pending");
       const tx = await writeContractAsync({
-        address: VASTMINT_NFT_ADDRESS as `0x${string}`,
+        address: typedCollection.contractAddress,
         abi: VASTMINT_NFT_ABI,
         functionName: "mintNFT",
-        args: [address, TOKEN_URI],
+        args: [address, tokenURI],
         value: mintPrice,
+        chainId: RITUAL_CHAIN_ID,
       });
 
       setTxHash(tx);
@@ -118,6 +162,8 @@ export default function MintPage() {
       const short =
         message.includes("rejected") || message.includes("denied")
           ? "Transaction rejected by wallet."
+          : message.includes("Metadata upload")
+          ? "Metadata upload failed. Please try again."
           : "Mint failed. Please try again.";
       setErrorMsg(short);
       setMintState("error");
@@ -130,6 +176,30 @@ export default function MintPage() {
     setErrorMsg(null);
   }
 
+  if (collectionLoading) {
+    return (
+      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-[#077345] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-zinc-500 text-sm">Loading collection...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!typedCollection || collectionError) {
+    return (
+      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-zinc-500 text-sm">Collection not found.</p>
+          <Link href="/collections" className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white">
+            Back to Collections
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
@@ -138,93 +208,44 @@ export default function MintPage() {
 
       <div className="relative max-w-5xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-zinc-600 mb-8">
-          <Link href="/launchpad" className="hover:text-emerald-400 transition">
-            Launchpad
-          </Link>
+          <Link href="/collections" className="hover:text-zinc-400 transition">Collections</Link>
           <span>/</span>
-          <span className="text-zinc-400">Ritual Genesis Pass</span>
+          <Link href={`/collections/${typedCollection.slug}`} className="hover:text-zinc-400 transition">{typedCollection.name}</Link>
+          <span>/</span>
+          <span className="text-zinc-400">Mint</span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
-              <div className="aspect-square w-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-48 h-48 rounded-full border border-[#077345]/10 animate-ping" style={{ animationDuration: "4s" }} />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-32 h-32 rounded-full border border-[#077345]/15 animate-ping" style={{ animationDuration: "3s", animationDelay: "0.5s" }} />
-                </div>
-                <div className="relative z-10 flex flex-col items-center gap-4">
-                  <div className="w-40 h-40 rounded-2xl overflow-hidden">
-                    <img
-                      src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
-                      alt="Ritual Genesis Pass"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-white text-sm font-bold">Ritual Genesis Pass</p>
-                    <p className="text-zinc-600 text-xs mt-0.5 tracking-widest uppercase">VastMint</p>
-                  </div>
-                </div>
+              <div className="aspect-square bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
+                {imageUrl ? (
+                  <img src={imageUrl} alt={typedCollection.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-zinc-700 font-mono text-xs">No Image</div>
+                )}
                 <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-3 py-1 text-xs font-bold text-emerald-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Live
+                    {isSoldOut ? "Sold Out" : "Live Mint"}
                   </span>
                 </div>
               </div>
-
               <div className="p-5 space-y-3 border-t border-white/5">
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Contract</span>
-                  <a
-                    href={`${EXPLORER_URL}/address/${VASTMINT_NFT_ADDRESS}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-emerald-400 font-mono text-xs hover:text-emerald-300 transition flex items-center gap-1"
-                  >
-                    {VASTMINT_NFT_ADDRESS.slice(0, 6)}...{VASTMINT_NFT_ADDRESS.slice(-4)}
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
-                      <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
-                    </svg>
+                  <a href={`${EXPLORER_URL}/address/${typedCollection.contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-mono text-xs hover:text-emerald-300 transition">
+                    {typedCollection.contractAddress.slice(0, 6)}...{typedCollection.contractAddress.slice(-4)}
                   </a>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Network</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-emerald-400 text-xs">Ritual Testnet</span>
-                  </div>
+                  <span className="text-zinc-600 text-xs">Creator</span>
+                  <span className="text-zinc-400 font-mono text-xs">{typedCollection.creator.slice(0, 6)}...{typedCollection.creator.slice(-4)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Standard</span>
                   <span className="text-zinc-400 text-xs font-mono">ERC-721</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Chain ID</span>
-                  <span className="text-zinc-400 text-xs font-mono">1979</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-5">
-              <p className="text-[#077345] text-xs font-bold uppercase tracking-[0.18em] mb-4">Mint Phases</p>
-              <div className="space-y-2">
-                {COLLECTION.phases.map((phase) => (
-                  <div key={phase.label} className={`flex items-center justify-between rounded-xl px-4 py-3 border ${phase.status === "live" ? "border-emerald-700/25 bg-emerald-900/10" : "border-white/5 bg-black/20"}`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${phase.status === "live" ? "bg-emerald-400 animate-pulse" : phase.status === "done" ? "bg-zinc-600" : "bg-zinc-800"}`} />
-                      <span className={`text-sm font-medium ${phase.status === "live" ? "text-white" : "text-zinc-500"}`}>
-                        {phase.label}
-                      </span>
-                    </div>
-                    <span className={`text-xs font-bold uppercase tracking-wider ${phase.status === "live" ? "text-emerald-400" : phase.status === "done" ? "text-zinc-600" : "text-zinc-700"}`}>
-                      {phase.status === "live" ? "Live" : phase.status === "done" ? "Done" : "Soon"}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -233,13 +254,13 @@ export default function MintPage() {
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-7">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/30 px-3 py-1 text-xs font-bold text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Mint
+                {typedCollection.symbol}
               </span>
-              <h1 className="text-3xl font-black mt-4 leading-tight">{COLLECTION.name}</h1>
-              <p className="text-zinc-500 text-sm mt-3 leading-relaxed">{COLLECTION.description}</p>
+              <h1 className="text-3xl font-black mt-4 leading-tight">{typedCollection.name}</h1>
+              <p className="text-zinc-500 text-sm mt-3 leading-relaxed">{typedCollection.description}</p>
               <div className="mt-6 grid grid-cols-3 gap-3">
                 {[
-                  { label: "Total Supply", value: COLLECTION.supply.toLocaleString() },
+                  { label: "Total Supply", value: maxSupply.toLocaleString() },
                   { label: "Minted", value: minted.toLocaleString() },
                   { label: "Mint Price", value: mintPriceLabel },
                 ].map(({ label, value }) => (
@@ -252,7 +273,7 @@ export default function MintPage() {
               <div className="mt-5">
                 <div className="flex justify-between text-xs mb-2">
                   <span className="text-zinc-600">Minting Progress</span>
-                  <span className="text-zinc-400 font-bold">{minted} / {COLLECTION.supply} · {progress}%</span>
+                  <span className="text-zinc-400 font-bold">{minted} / {maxSupply} · {progress}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-black/50 overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-[#077345] to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
@@ -264,37 +285,19 @@ export default function MintPage() {
               {displayMintState === "success" && txHash ? (
                 <div className="flex flex-col items-center text-center py-2">
                   <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                      <path d="M6 14L11 19L22 8" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14L11 19L22 8" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </div>
                   <h2 className="text-2xl font-black">Mint Successful!</h2>
-                  <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">
-                    Your NFT has been minted on Ritual testnet and will appear in your dashboard shortly.
-                  </p>
+                  <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">Your NFT has been minted and will appear in your dashboard shortly.</p>
                   <div className="mt-6 w-full rounded-xl border border-white/5 bg-black/30 p-4 text-left">
                     <p className="text-zinc-600 text-xs mb-2">Transaction Hash</p>
                     <p className="font-mono text-emerald-400 text-xs break-all leading-relaxed">{txHash}</p>
                   </div>
                   <div className="mt-4 flex gap-3 w-full">
-                    <a
-                      href={`${EXPLORER_URL}/tx/${txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#077345]/30 px-4 py-3 text-sm font-bold text-emerald-400 hover:bg-[#077345]/10 transition"
-                    >
-                      View on Explorer
-                      <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
-                        <path d="M3.5 3.5a.5.5 0 000 1h3.8L1.15 10.65a.5.5 0 00.7.7L8 5.2V9a.5.5 0 001 0V4A.5.5 0 008.5 3.5H3.5z" />
-                      </svg>
-                    </a>
-                    <Link href="/dashboard" className="flex-1 flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-3 text-sm font-bold text-white">
-                      View My NFTs
-                    </Link>
+                    <a href={`${EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center rounded-xl border border-[#077345]/30 px-4 py-3 text-sm font-bold text-emerald-400 hover:bg-[#077345]/10 transition">View on Explorer</a>
+                    <Link href="/dashboard" className="flex-1 flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-3 text-sm font-bold text-white">View My NFTs</Link>
                   </div>
-                  <button onClick={reset} className="mt-4 text-zinc-600 text-sm hover:text-zinc-400 transition">
-                    Mint Another
-                  </button>
+                  {!isSoldOut && <button onClick={reset} className="mt-4 text-zinc-600 text-sm hover:text-zinc-400 transition">Mint Another</button>}
                 </div>
               ) : (
                 <>
@@ -305,84 +308,39 @@ export default function MintPage() {
                         <p className="text-zinc-600 text-xs">Connected Wallet</p>
                         <p className="font-mono text-sm text-zinc-200 mt-0.5">{address?.slice(0, 6)}...{address?.slice(-4)}</p>
                       </div>
-                      {isWrongNetwork ? (
-                        <span className="flex items-center gap-1.5 text-xs text-red-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          Wrong Network
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          Ritual Testnet
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3 mb-5">
-                      <p className="text-zinc-600 text-sm">Connect your wallet to mint</p>
-                    </div>
-                  )}
-                  <div className="rounded-xl border border-white/5 bg-black/20 p-4 mb-5">
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className="text-zinc-500">Mint Price</span>
-                      <span className={`font-bold ${mintPrice === 0n ? "text-emerald-400" : "text-white"}`}>{mintPriceLabel}</span>
-                    </div>
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className="text-zinc-500">Platform Fee</span>
-                      <span className="text-zinc-400">None</span>
-                    </div>
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className="text-zinc-500">Gas Fee</span>
-                      <span className="text-zinc-400">Paid by wallet</span>
-                    </div>
-                    <div className="border-t border-white/5 mt-3 pt-3 flex justify-between text-sm">
-                      <span className="text-zinc-400 font-bold">Total</span>
-                      <span className={`font-black ${mintPrice === 0n ? "text-emerald-400" : "text-white"}`}>
-                        {mintPrice === 0n ? "Gas Only" : mintPriceLabel}
+                      <span className={`flex items-center gap-1.5 text-xs ${isWrongNetwork ? "text-red-400" : "text-emerald-400"}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isWrongNetwork ? "bg-red-500" : "bg-emerald-400"}`} />
+                        {isWrongNetwork ? "Wrong Network" : "Ritual Testnet"}
                       </span>
                     </div>
-                  </div>
-                  {displayMintState === "error" && errorMsg && (
-                    <div className="mb-4 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3">
-                      <p className="text-red-400 text-sm">{errorMsg}</p>
-                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3 mb-5"><p className="text-zinc-600 text-sm">Connect your wallet to mint</p></div>
                   )}
+                  <div className="rounded-xl border border-white/5 bg-black/20 p-4 mb-5">
+                    <div className="flex justify-between text-sm mb-3"><span className="text-zinc-500">Mint Price</span><span className={`font-bold ${mintPrice === 0n ? "text-emerald-400" : "text-white"}`}>{mintPriceLabel}</span></div>
+                    <div className="flex justify-between text-sm mb-3"><span className="text-zinc-500">Next Token</span><span className="text-zinc-400">#{nextTokenId}</span></div>
+                    <div className="flex justify-between text-sm mb-3"><span className="text-zinc-500">Gas Fee</span><span className="text-zinc-400">Paid by wallet</span></div>
+                    <div className="border-t border-white/5 mt-3 pt-3 flex justify-between text-sm"><span className="text-zinc-400 font-bold">Total</span><span className={`font-black ${mintPrice === 0n ? "text-emerald-400" : "text-white"}`}>{mintPrice === 0n ? "Gas Only" : mintPriceLabel}</span></div>
+                  </div>
+                  {displayMintState === "error" && errorMsg && <div className="mb-4 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3"><p className="text-red-400 text-sm">{errorMsg}</p></div>}
+                  {isSoldOut && <div className="mb-4 rounded-xl border border-emerald-800/30 bg-emerald-900/10 px-4 py-3"><p className="text-emerald-400 text-sm">This collection is sold out.</p></div>}
                   <button
                     onClick={handleMint}
-                    disabled={!isConnected || isPending || (!isWrongNetwork && !isMintPriceLoaded)}
+                    disabled={!isConnected || isPending || mintPrice === undefined || isSoldOut}
                     className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                      !isConnected
+                      !isConnected || isSoldOut
                         ? "bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5"
-                        : isPending || (!isWrongNetwork && !isMintPriceLoaded)
+                        : isPending || mintPrice === undefined
                         ? "bg-[#077345]/60 text-white/70 cursor-not-allowed"
                         : isWrongNetwork
                         ? "bg-red-900/60 hover:bg-red-800/60 text-white border border-red-700/30"
                         : "bg-[#077345] hover:bg-[#066039] text-white shadow-lg shadow-black/30"
                     }`}
                   >
-                    {isPending && (
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
-                    )}
-                    {!isConnected
-                      ? "Connect Wallet to Mint"
-                      : displayMintState === "switching"
-                      ? "Switching Network..."
-                      : displayMintState === "pending"
-                      ? "Confirm in Wallet..."
-                      : displayMintState === "confirming"
-                      ? "Confirming Transaction..."
-                      : isWrongNetwork
-                      ? "Switch to Ritual Testnet"
-                      : !isMintPriceLoaded
-                      ? "Loading Mint Price..."
-                      : "Mint NFT"}
+                    {isPending && <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>}
+                    {!isConnected ? "Connect Wallet to Mint" : isSoldOut ? "Sold Out" : displayMintState === "uploading" ? "Uploading Metadata..." : displayMintState === "switching" ? "Switching Network..." : displayMintState === "pending" ? "Confirm in Wallet..." : displayMintState === "confirming" ? "Confirming Transaction..." : isWrongNetwork ? "Switch to Ritual Testnet" : "Mint NFT"}
                   </button>
-                  <p className="text-center text-zinc-700 text-xs mt-4">
-                    Minting on Ritual Testnet · Chain ID 1979
-                  </p>
+                  <p className="text-center text-zinc-700 text-xs mt-4">Minting on Ritual Testnet · Chain ID 1979</p>
                 </>
               )}
             </div>
