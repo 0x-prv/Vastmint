@@ -89,10 +89,11 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
 
         tokenToListingId[_nftContract][_tokenId] = listingId;
 
-        if (contractCreator[_nftContract] == address(0)) {
+       if (contractCreator[_nftContract] == address(0)) {
             address creator = IOwnableNFT(_nftContract).owner();
-            require(creator != address(0), "Creator required");
-            contractCreator[_nftContract] = creator;
+            if (creator != address(0)) {
+                contractCreator[_nftContract] = creator;
+            }
         }
 
         emit Listed(listingId, msg.sender, _nftContract, _tokenId, _price);
@@ -221,17 +222,19 @@ contract VastMintMarketplace is Ownable, ReentrancyGuard {
             return false;
         }
 
-        try nft.getApproved(listing.tokenId) returns (address approved) {
-            if (approved == address(this)) return true;
-        } catch {
-            return false;
-        }
+        bool approvedSingle = false;
+bool approvedAll = false;
 
-        try nft.isApprovedForAll(listing.seller, address(this)) returns (bool approvedForAll) {
-            return approvedForAll;
-        } catch {
-            return false;
-        }
+try nft.getApproved(listing.tokenId) returns (address approved) {
+    approvedSingle = (approved == address(this));
+} catch {}
+
+try nft.isApprovedForAll(listing.seller, address(this)) returns (bool approvedAll_) {
+    approvedAll = approvedAll_;
+} catch {}
+
+return approvedSingle || approvedAll;
+        
     }
 
     function _sendValue(address to, uint256 amount) private {

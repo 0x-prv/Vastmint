@@ -184,7 +184,7 @@ export default function HomePage() {
           ) : (
             /* Fallback — Genesis Pass card pag walang listings */
             <Link
-              href={`/nft/0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067/0`}
+              href={`/nft/0x8b9249CE8621a3C9517DB61E82238E271f7adafD/0`}
               className="min-w-[320px] rounded-2xl overflow-hidden border border-[#077345]/15 bg-[#0b1f17] group flex-shrink-0 hover:border-[#077345]/40 transition"
             >
               <div className="h-[380px] relative overflow-hidden bg-[#0d2518]">
