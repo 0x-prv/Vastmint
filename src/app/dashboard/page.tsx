@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { parseEther } from "viem";
 import {
   useAccount,
   useReadContract,
+  useReadContracts,
   useWriteContract,
+  usePublicClient,
   useChainId,
   useSwitchChain,
 } from "wagmi";
@@ -30,6 +32,7 @@ export default function DashboardPage() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const [activeTab, setActiveTab] = useState("My NFTs");
   const [listingTokenId, setListingTokenId] = useState<bigint | null>(null);
   const [listPrice, setListPrice] = useState("");
@@ -38,7 +41,7 @@ export default function DashboardPage() {
 
   const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
 
-  // Fetch NFT balance
+  // Fetch NFT balance and token ownership. balanceOf alone cannot identify which token IDs the wallet owns.
   const { data: nftBalance } = useReadContract({
     address: VASTMINT_NFT_ADDRESS as `0x${string}`,
     abi: VASTMINT_NFT_ABI,
@@ -46,6 +49,29 @@ export default function DashboardPage() {
     args: [address!],
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: !!address },
+  });
+
+  const { data: totalSupply } = useReadContract({
+    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "totalSupply",
+    chainId: RITUAL_CHAIN_ID,
+  });
+
+  const mintedTokenIds = useMemo(() => {
+    const minted = totalSupply ? Number(totalSupply) : 0;
+    return Array.from({ length: minted }, (_, tokenId) => BigInt(tokenId));
+  }, [totalSupply]);
+
+  const { data: tokenOwners } = useReadContracts({
+    contracts: mintedTokenIds.map((tokenId) => ({
+      address: VASTMINT_NFT_ADDRESS as `0x${string}`,
+      abi: VASTMINT_NFT_ABI,
+      functionName: "ownerOf",
+      args: [tokenId],
+      chainId: RITUAL_CHAIN_ID,
+    })),
+    query: { enabled: !!address && mintedTokenIds.length > 0 },
   });
 
   // Fetch my listings
@@ -68,7 +94,16 @@ export default function DashboardPage() {
     query: { enabled: !!address },
   });
 
-  const balance = nftBalance ? Number(nftBalance) : 0;
+  const ownershipLoaded = mintedTokenIds.length === 0 || !!tokenOwners;
+  const ownedTokenIds = ownershipLoaded
+    ? mintedTokenIds.filter((tokenId, index) => {
+      const ownerResult = tokenOwners?.[index];
+      return ownerResult?.status === "success" &&
+        typeof ownerResult.result === "string" &&
+        ownerResult.result.toLowerCase() === address?.toLowerCase();
+    })
+    : [];
+  const balance = ownershipLoaded ? ownedTokenIds.length : nftBalance ? Number(nftBalance) : 0;
   const activeListings = (myListings ?? []).filter(
     (listing) => listing.active && listing.nftContract.toLowerCase() === VASTMINT_NFT_ADDRESS.toLowerCase(),
   );
@@ -92,18 +127,24 @@ export default function DashboardPage() {
         await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
       }
 
-      // Step 1: Approve marketplace
-      await writeContractAsync({
+      if (!publicClient) {
+        throw new Error("Ritual public client unavailable");
+      }
+
+      // Step 1: Approve marketplace for every NFT owned by this wallet.
+      const approvalHash = await writeContractAsync({
         address: VASTMINT_NFT_ADDRESS as `0x${string}`,
         abi: VASTMINT_NFT_ABI,
-        functionName: "approve",
-        args: [VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`, tokenId],
+        functionName: "setApprovalForAll",
+        args: [VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`, true],
+        chainId: RITUAL_CHAIN_ID,
       });
+      await publicClient.waitForTransactionReceipt({ hash: approvalHash });
 
-      // Step 2: List NFT
+      // Step 2: List NFT after approval is mined so the marketplace approval check passes.
       setListingState("listing");
       const priceWei = parseEther(listPrice);
-      await writeContractAsync({
+      const listingHash = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
         functionName: "listNFT",
@@ -112,12 +153,14 @@ export default function DashboardPage() {
           tokenId,
           priceWei,
         ],
+        chainId: RITUAL_CHAIN_ID,
       });
+      await publicClient.waitForTransactionReceipt({ hash: listingHash });
 
       setListingState("success");
       setListingTokenId(null);
       setListPrice("");
-      refetchListings();
+      await refetchListings();
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Listing failed";
@@ -137,7 +180,7 @@ export default function DashboardPage() {
         functionName: "cancelListing",
         args: [listingId],
       });
-      refetchListings();
+      await refetchListings();
     } catch (err) {
       console.error(err);
     }
@@ -210,7 +253,11 @@ export default function DashboardPage() {
         {/* MY NFTs TAB */}
         {activeTab === "My NFTs" && (
           <div>
-            {balance === 0 ? (
+            {!ownershipLoaded ? (
+              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
+                <p className="text-zinc-500 text-sm">Scanning owned token IDs…</p>
+              </div>
+            ) : balance === 0 ? (
               <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
                 <p className="text-zinc-500 text-sm">You don&apos;t own any VastMint NFTs yet.</p>
                 <Link
@@ -260,12 +307,11 @@ export default function DashboardPage() {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: balance }).map((_, i) => {
-                    const tokenId = BigInt(i);
+                  {ownedTokenIds.map((tokenId) => {
                     const activeListing = activeListingByTokenId.get(tokenId.toString());
 
                     return (
-                      <div key={i} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
+                      <div key={tokenId.toString()} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
                         <div className="h-40 bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
                           <img
                             src="https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4"
@@ -280,7 +326,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="p-4">
                           <p className="text-white font-bold text-sm">Ritual Genesis Pass</p>
-                          <p className="text-zinc-600 text-xs mt-0.5">Token #{i}</p>
+                          <p className="text-zinc-600 text-xs mt-0.5">Token #{tokenId.toString()}</p>
                           {activeListing ? (
                             <div className="mt-3 rounded-xl border border-white/5 bg-black/20 px-4 py-2">
                               <p className="text-zinc-600 text-xs">Active Listing</p>
