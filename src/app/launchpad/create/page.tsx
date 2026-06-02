@@ -27,14 +27,14 @@ export default function LaunchpadCreatePage() {
   const [deployedSlug, setDeployedSlug] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
 
-  // Step 1 - Details
+  // Step 0 - Details
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [description, setDescription] = useState("");
   const [supply, setSupply] = useState("");
   const [price, setPrice] = useState("0");
 
-  // Step 2 - Upload
+  // Step 1 - Upload
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageCid, setImageCid] = useState<string | null>(null);
@@ -46,6 +46,7 @@ export default function LaunchpadCreatePage() {
     hash: txHash,
     query: { enabled: !!txHash && deployState === "confirming" },
   });
+
   const displayDeployState = txConfirmed && deployState === "confirming" ? "success" : deployState;
   const displayStep = displayDeployState === "success" ? 3 : step;
   const isPending =
@@ -68,13 +69,10 @@ export default function LaunchpadCreatePage() {
     setImageCid(null);
   }
 
-  async function uploadToPinata() {
-    if (!imageFile) return null;
-    setDeployState("uploading");
-
+  async function uploadToPinata(file: File): Promise<string | null> {
     try {
       const formData = new FormData();
-      formData.append("file", imageFile);
+      formData.append("file", file);
       formData.append("pinataMetadata", JSON.stringify({ name: `${name}-image` }));
 
       const res = await fetch("/api/pinata/file", {
@@ -84,31 +82,32 @@ export default function LaunchpadCreatePage() {
 
       if (!res.ok) throw new Error("Pinata upload failed");
       const data = await res.json();
-      const cid = data.IpfsHash;
-      setImageCid(cid);
-      return cid;
+      return data.IpfsHash as string;
     } catch (err) {
       console.error(err);
-      setErrorMsg("Image upload failed. Please try again.");
-      setDeployState("error");
       return null;
     }
   }
 
   async function handleDeploy() {
-    if (!address || !isConnected) return;
+    if (!address || !isConnected || !imageFile) return;
     setErrorMsg(null);
+    setDeployState("uploading");
 
     try {
-      // Upload image first if not yet uploaded
+      // Step 1: Upload image
       let cid = imageCid;
       if (!cid) {
-        cid = await uploadToPinata();
-        if (!cid) return;
+        cid = await uploadToPinata(imageFile);
+        if (!cid) {
+          setErrorMsg("Image upload failed. Please try again.");
+          setDeployState("error");
+          return;
+        }
+        setImageCid(cid);
       }
 
-      // Upload metadata JSON to Pinata
-      setDeployState("uploading");
+      // Step 2: Upload metadata JSON
       const metadata = {
         name,
         description,
@@ -121,9 +120,7 @@ export default function LaunchpadCreatePage() {
 
       const metaRes = await fetch("/api/pinata/json", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pinataContent: metadata,
           pinataMetadata: { name: `${name}-metadata` },
@@ -131,15 +128,14 @@ export default function LaunchpadCreatePage() {
       });
 
       if (!metaRes.ok) throw new Error("Metadata upload failed");
-      await metaRes.json();
 
-      // Switch network if needed
+      // Step 3: Switch network if needed
       if (isWrongNetwork) {
         setDeployState("switching");
         await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
       }
 
-      // Deploy via Factory
+      // Step 4: Deploy via Factory
       setDeployState("pending");
       const slug = slugify(name);
       const mintPriceWei = price && Number(price) > 0 ? parseEther(price) : 0n;
@@ -149,9 +145,9 @@ export default function LaunchpadCreatePage() {
         abi: VASTMINT_FACTORY_ABI,
         functionName: "createCollection",
         args: [
-          name,
-          symbol,
-          description,
+          name.trim(),
+          symbol.trim().toUpperCase(),
+          description.trim(),
           `ipfs://${cid}`,
           BigInt(supply),
           mintPriceWei,
@@ -162,19 +158,23 @@ export default function LaunchpadCreatePage() {
       setTxHash(tx);
       setDeployedSlug(slug);
       setDeployState("confirming");
-
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Deploy failed";
-      const short = message.includes("rejected") || message.includes("denied")
-        ? "Transaction rejected by wallet."
-        : "Deploy failed. Please try again.";
+      const short =
+        message.includes("rejected") || message.includes("denied")
+          ? "Transaction rejected by wallet."
+          : "Deploy failed. Please try again.";
       setErrorMsg(short);
       setDeployState("error");
     }
   }
 
-  const canProceedStep0 = name.trim().length > 0 && symbol.trim().length > 0 && description.trim().length > 0 && supply.trim().length > 0 && Number(supply) > 0;
+  const canProceedStep0 =
+    name.trim().length > 0 &&
+    symbol.trim().length > 0 &&
+    description.trim().length > 0 &&
+    Number(supply) > 0;
   const canProceedStep1 = !!imageFile;
 
   return (
@@ -186,9 +186,9 @@ export default function LaunchpadCreatePage() {
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
           <p className="text-[#077345] text-xs font-bold uppercase tracking-[0.18em] mb-2">VastMint</p>
-          <h1 className="text-4xl font-black tracking-tight">Creator Deploy Flow</h1>
+          <h1 className="text-4xl font-black tracking-tight">Deploy Your Collection</h1>
           <p className="mt-3 text-sm text-white/50">
-            Configure your Ritual-native collection and deploy in minutes.
+            Launch your Ritual-native NFT collection in minutes.
           </p>
         </div>
 
@@ -198,9 +198,7 @@ export default function LaunchpadCreatePage() {
             {steps.map((item, index) => (
               <button
                 key={item}
-                onClick={() => {
-                  if (index < displayStep) setStep(index);
-                }}
+                onClick={() => { if (index < displayStep) setStep(index); }}
                 className={`rounded-2xl border px-3 py-3 text-sm transition ${
                   displayStep === index
                     ? "border-[#077345] bg-[#077345]/20 text-white"
@@ -209,35 +207,43 @@ export default function LaunchpadCreatePage() {
                     : "border-white/10 bg-white/[0.03] text-white/40"
                 }`}
               >
-                <span className="block text-xs text-white/40 mb-0.5">Step {index + 1}</span>
+                <span className="block text-xs text-white/40 mb-0.5">
+                  {index < displayStep ? "✓" : `Step ${index + 1}`}
+                </span>
                 {item}
               </button>
             ))}
           </div>
 
-          {/* Step 0 - Details */}
+          {/* Step 0 — Details */}
           {displayStep === 0 && (
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm text-white/70">Collection Name</label>
+                <label className="mb-2 block text-sm text-white/70">Collection Name *</label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
                   placeholder="Vast Genesis"
                 />
+                {name && (
+                  <p className="text-zinc-600 text-xs mt-1 font-mono">
+                    Slug: /collections/<span className="text-emerald-400">{slugify(name)}</span>/mint
+                  </p>
+                )}
               </div>
               <div>
-                <label className="mb-2 block text-sm text-white/70">Symbol</label>
+                <label className="mb-2 block text-sm text-white/70">Symbol *</label>
                 <input
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                   className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
                   placeholder="VAST"
+                  maxLength={10}
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm text-white/70">Description</label>
+                <label className="mb-2 block text-sm text-white/70">Description *</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -248,12 +254,14 @@ export default function LaunchpadCreatePage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm text-white/70">Max Supply</label>
+                  <label className="mb-2 block text-sm text-white/70">Max Supply *</label>
                   <input
                     value={supply}
                     onChange={(e) => setSupply(e.target.value.replace(/\D/g, ""))}
                     className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
                     placeholder="1000"
+                    type="number"
+                    min="1"
                   />
                 </div>
                 <div>
@@ -263,20 +271,17 @@ export default function LaunchpadCreatePage() {
                     onChange={(e) => setPrice(e.target.value)}
                     className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
                     placeholder="0"
+                    type="number"
+                    min="0"
+                    step="0.001"
                   />
                   <p className="text-xs text-white/30 mt-1">Set 0 for free mint</p>
                 </div>
               </div>
-              {name && (
-                <div className="rounded-xl bg-black/20 border border-white/5 px-4 py-2">
-                  <p className="text-xs text-white/40">Mint page URL preview</p>
-                  <p className="text-xs text-emerald-400 font-mono mt-0.5">/collections/{slugify(name)}/mint</p>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Step 1 - Upload */}
+          {/* Step 1 — Upload */}
           {displayStep === 1 && (
             <div className="space-y-4">
               <input
@@ -298,35 +303,41 @@ export default function LaunchpadCreatePage() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-lg font-medium">Upload NFT Image</p>
-                    <p className="mt-2 text-sm text-white/50">PNG, JPG, GIF, SVG — Max 10MB</p>
-                    <button className="mt-6 rounded-2xl bg-[#077345] px-5 py-3 text-sm font-medium text-white hover:bg-[#066039] transition">
-                      Choose File
-                    </button>
+                    <div className="w-12 h-12 rounded-xl bg-[#077345]/20 flex items-center justify-center mx-auto mb-4">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#077345" strokeWidth="1.5">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-white/70">Click to upload collection image</p>
+                    <p className="mt-1 text-xs text-white/30">PNG, JPG, GIF, WEBP — Max 10MB</p>
                   </>
                 )}
               </div>
               {imageCid && (
                 <div className="rounded-xl bg-black/20 border border-emerald-700/20 px-4 py-3">
-                  <p className="text-xs text-white/40">Uploaded to IPFS</p>
-                  <p className="text-xs text-emerald-400 font-mono mt-0.5 break-all">{imageCid}</p>
+                  <p className="text-xs text-white/40">Already uploaded to IPFS ✓</p>
+                  <p className="text-xs text-emerald-400 font-mono mt-0.5 break-all">ipfs://{imageCid}</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Step 2 - Deploy */}
+          {/* Step 2 — Deploy */}
           {displayStep === 2 && (
             <div className="space-y-4">
-              {/* Summary */}
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 space-y-3">
-                <p className="text-[#077345] text-xs font-bold uppercase tracking-widest mb-3">Collection Summary</p>
+                <p className="text-[#077345] text-xs font-bold uppercase tracking-widest mb-3">
+                  Collection Summary
+                </p>
                 {[
                   { label: "Name", value: name },
                   { label: "Symbol", value: symbol },
-                  { label: "Supply", value: supply },
-                  { label: "Mint Price", value: price === "0" ? "Free" : `${price} RITUAL` },
+                  { label: "Supply", value: Number(supply).toLocaleString() },
+                  { label: "Mint Price", value: price === "0" || !price ? "Free" : `${price} RITUAL` },
                   { label: "Slug", value: slugify(name) },
+                  { label: "Network", value: "Ritual Testnet" },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-white/40">{label}</span>
@@ -347,7 +358,7 @@ export default function LaunchpadCreatePage() {
                 </div>
               )}
 
-              {displayDeployState === "error" && errorMsg && (
+              {deployState === "error" && errorMsg && (
                 <div className="rounded-xl border border-red-800/30 bg-red-900/10 px-4 py-3">
                   <p className="text-red-400 text-sm">{errorMsg}</p>
                 </div>
@@ -372,13 +383,13 @@ export default function LaunchpadCreatePage() {
                 )}
                 {!isConnected
                   ? "Connect Wallet to Deploy"
-                  : displayDeployState === "uploading"
+                  : deployState === "uploading"
                   ? "Uploading to IPFS..."
-                  : displayDeployState === "switching"
+                  : deployState === "switching"
                   ? "Switching Network..."
-                  : displayDeployState === "pending"
+                  : deployState === "pending"
                   ? "Confirm in Wallet..."
-                  : displayDeployState === "confirming"
+                  : deployState === "confirming"
                   ? "Confirming Transaction..."
                   : isWrongNetwork
                   ? "Switch to Ritual Testnet"
@@ -391,7 +402,7 @@ export default function LaunchpadCreatePage() {
             </div>
           )}
 
-          {/* Step 3 - Success */}
+          {/* Step 3 — Success */}
           {displayStep === 3 && (
             <div className="flex flex-col items-center text-center py-4">
               <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
@@ -399,14 +410,21 @@ export default function LaunchpadCreatePage() {
                   <path d="M6 14L11 19L22 8" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-black">Collection Deployed!</h2>
+              <h2 className="text-2xl font-black">Collection Deployed! 🎉</h2>
               <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">
                 Your NFT collection is live on Ritual Testnet. Share the mint page with your collectors!
               </p>
               {txHash && (
                 <div className="mt-5 w-full rounded-xl border border-white/5 bg-black/30 p-4 text-left">
                   <p className="text-zinc-600 text-xs mb-1">Transaction Hash</p>
-                  <p className="font-mono text-emerald-400 text-xs break-all">{txHash}</p>
+                  <a
+                    href={`https://explorer.ritualfoundation.org/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-emerald-400 text-xs break-all hover:underline"
+                  >
+                    {txHash}
+                  </a>
                 </div>
               )}
               <div className="mt-5 flex gap-3 w-full">
@@ -441,7 +459,9 @@ export default function LaunchpadCreatePage() {
               {displayStep < 2 && (
                 <button
                   onClick={() => setStep((c) => Math.min(c + 1, 2))}
-                  disabled={displayStep === 0 ? !canProceedStep0 : displayStep === 1 ? !canProceedStep1 : false}
+                  disabled={
+                    displayStep === 0 ? !canProceedStep0 : !canProceedStep1
+                  }
                   className="rounded-2xl bg-[#077345] px-5 py-3 text-sm font-medium text-white hover:bg-[#066039] disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   Continue
