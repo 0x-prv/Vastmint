@@ -121,46 +121,82 @@ export default function MintPage() {
     displayMintState === "confirming";
 
   async function handleMint() {
-    if (!address || !contractAddress) return;
-    setErrorMsg(null);
+  if (!address || !contractAddress || !collection) return;
+  setErrorMsg(null);
 
-    try {
-      if (isWrongNetwork) {
-        setMintState("switching");
-        await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
-      }
-
-      if (!isMintPriceLoaded) {
-        setErrorMsg("Mint price is still loading. Please try again.");
-        setMintState("error");
-        return;
-      }
-
-      setMintState("pending");
-
-      const tx = await writeContractAsync({
-        address: contractAddress,
-        abi: VASTMINT_NFT_ABI,
-        functionName: "mintNFT",
-        args: [address, collection?.image ?? ""],
-        value: mintPrice as bigint,
-      });
-
-      setTxHash(tx);
-      setMintState("confirming");
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Transaction failed";
-      const short =
-        message.includes("rejected") || message.includes("denied")
-          ? "Transaction rejected by wallet."
-          : message.includes("Metadata upload")
-          ? "Metadata upload failed. Please try again."
-          : "Mint failed. Please try again.";
-      setErrorMsg(short);
-      setMintState("error");
+  try {
+    if (isWrongNetwork) {
+      setMintState("switching");
+      await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
     }
+
+    if (!isMintPriceLoaded) {
+      setErrorMsg("Mint price is still loading. Please try again.");
+      setMintState("error");
+      return;
+    }
+
+    setMintState("uploading");
+
+    const nextTokenId = minted;
+
+    const metadata = {
+      name: `${collection.name} #${nextTokenId}`,
+      description: collection.description,
+      image: collection.image,
+      attributes: [
+        { trait_type: "Collection", value: collection.name },
+        { trait_type: "Symbol", value: collection.symbol },
+        { trait_type: "Token ID", value: String(nextTokenId) },
+      ],
+    };
+
+    const metadataRes = await fetch("/api/pinata/json", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(metadata),
+    });
+
+    if (!metadataRes.ok) {
+      throw new Error("Metadata upload failed");
+    }
+
+    const metadataJson = await metadataRes.json();
+
+    const metadataCid =
+      metadataJson.IpfsHash || metadataJson.cid || metadataJson.ipfsHash;
+
+    if (!metadataCid) {
+      throw new Error("Metadata CID missing");
+    }
+
+    const tokenURI = `ipfs://${metadataCid}`;
+
+    setMintState("pending");
+
+    const tx = await writeContractAsync({
+      address: contractAddress,
+      abi: VASTMINT_NFT_ABI,
+      functionName: "mintNFT",
+      args: [address, tokenURI],
+      value: mintPrice as bigint,
+    });
+
+    setTxHash(tx);
+    setMintState("confirming");
+  } catch (err: unknown) {
+    console.error(err);
+    const message = err instanceof Error ? err.message : "Transaction failed";
+    const short =
+      message.includes("rejected") || message.includes("denied")
+        ? "Transaction rejected by wallet."
+        : message.includes("Metadata upload") || message.includes("Metadata CID")
+        ? "Metadata upload failed. Please try again."
+        : "Mint failed. Please try again.";
+    setErrorMsg(short);
+    setMintState("error");
   }
+}
 
   function reset() {
     setMintState("idle");
