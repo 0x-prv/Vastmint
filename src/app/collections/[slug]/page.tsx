@@ -63,7 +63,7 @@ function CancelButton({
   onSuccess: () => void;
 }) {
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const [cancelling, setCancelling] = useState(false);
 
   async function handleCancel() {
@@ -99,7 +99,7 @@ export default function CollectionPage() {
   const { slug } = useParams<{ slug: string }>();
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const [buying, setBuying] = useState<bigint | null>(null);
