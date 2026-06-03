@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatEther } from "viem";
@@ -21,13 +21,14 @@ import { VASTMINT_NFT_ABI, VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
-type MintState = "idle" | "uploading" | "switching" | "pending" | "confirming" | "success" | "error";
-
-function resolveIpfs(uri?: string | null) {
-  if (!uri) return null;
-  if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.replace("ipfs://", "")}`;
-  return uri;
-}
+type MintState =
+  | "idle"
+  | "uploading"
+  | "switching"
+  | "pending"
+  | "confirming"
+  | "success"
+  | "error";
 
 type Collection = {
   contractAddress: `0x${string}`;
@@ -66,13 +67,14 @@ export default function MintPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Fetch collection from Factory
-  const { data: collectionData, isLoading: collectionLoading } = useReadContract({
-    address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
-    abi: VASTMINT_FACTORY_ABI,
-    functionName: "getCollectionBySlug",
-    args: [slug],
-    chainId: RITUAL_CHAIN_ID,
-  });
+  const { data: collectionData, isLoading: collectionLoading } =
+    useReadContract({
+      address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
+      abi: VASTMINT_FACTORY_ABI,
+      functionName: "getCollectionBySlug",
+      args: [slug],
+      chainId: RITUAL_CHAIN_ID,
+    });
 
   const collection = collectionData as Collection | undefined;
   const contractAddress = collection?.contractAddress;
@@ -103,34 +105,7 @@ export default function MintPage() {
   const isMintPriceLoaded = mintPrice !== undefined;
   const isFree = (mintPrice as bigint | undefined) === 0n;
 
-  const { data: collection, isLoading: collectionLoading, error: collectionError } = useReadContract({
-    address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
-    abi: VASTMINT_FACTORY_ABI,
-    functionName: "getCollectionBySlug",
-    args: [slug],
-    chainId: RITUAL_CHAIN_ID,
-    query: { enabled: !!slug },
-  });
-
-  const typedCollection = collection as Collection | undefined;
-
-  const { data: totalSupply, refetch: refetchSupply } = useReadContract({
-    address: typedCollection?.contractAddress,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "totalSupply",
-    chainId: RITUAL_CHAIN_ID,
-    query: { enabled: !!typedCollection?.contractAddress },
-  });
-
-  const minted = totalSupply ? Number(totalSupply) : 0;
-  const maxSupply = typedCollection ? Number(typedCollection.maxSupply) : 0;
-  const progress = maxSupply > 0 ? Math.min(100, Math.round((minted / maxSupply) * 100)) : 0;
-  const mintPrice = typedCollection?.mintPrice;
-  const mintPriceLabel = formatMintPrice(mintPrice);
-  const imageUrl = resolveIpfs(typedCollection?.image);
-  const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
   const isSoldOut = maxSupply > 0 && minted >= maxSupply;
-  const nextTokenId = minted;
 
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -229,7 +204,10 @@ export default function MintPage() {
       <div className="relative max-w-5xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-zinc-600 mb-8">
-          <Link href="/collections" className="hover:text-emerald-400 transition">
+          <Link
+            href="/collections"
+            className="hover:text-emerald-400 transition"
+          >
             Collections
           </Link>
           <span>/</span>
@@ -267,7 +245,9 @@ export default function MintPage() {
                     )}
                   </div>
                   <div className="text-center">
-                    <p className="text-white text-sm font-bold">{collection.name}</p>
+                    <p className="text-white text-sm font-bold">
+                      {collection.name}
+                    </p>
                     <p className="text-zinc-600 text-xs mt-0.5 tracking-widest uppercase">
                       {collection.symbol}
                     </p>
@@ -290,7 +270,12 @@ export default function MintPage() {
                     className="text-emerald-400 font-mono text-xs hover:text-emerald-300 transition flex items-center gap-1"
                   >
                     {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 12 12"
+                      fill="currentColor"
+                    >
                       <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
                     </svg>
                   </a>
@@ -298,19 +283,24 @@ export default function MintPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Creator</span>
                   <span className="text-zinc-400 text-xs font-mono">
-                    {collection.creator.slice(0, 6)}...{collection.creator.slice(-4)}
+                    {collection.creator.slice(0, 6)}...
+                    {collection.creator.slice(-4)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Network</span>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-emerald-400 text-xs">Ritual Testnet</span>
+                    <span className="text-emerald-400 text-xs">
+                      Ritual Testnet
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Standard</span>
-                  <span className="text-zinc-400 text-xs font-mono">ERC-721</span>
+                  <span className="text-zinc-400 text-xs font-mono">
+                    ERC-721
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-600 text-xs">Chain ID</span>
@@ -325,10 +315,14 @@ export default function MintPage() {
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-7">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/30 px-3 py-1 text-xs font-bold text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {typedCollection.symbol}
+                {collection.symbol}
               </span>
-              <h1 className="text-3xl font-black mt-4 leading-tight">{collection.name}</h1>
-              <p className="text-zinc-500 text-sm mt-3 leading-relaxed">{collection.description}</p>
+              <h1 className="text-3xl font-black mt-4 leading-tight">
+                {collection.name}
+              </h1>
+              <p className="text-zinc-500 text-sm mt-3 leading-relaxed">
+                {collection.description}
+              </p>
 
               <div className="mt-6 grid grid-cols-3 gap-3">
                 {[
@@ -383,9 +377,14 @@ export default function MintPage() {
                     </svg>
                   </div>
                   <h2 className="text-2xl font-black">Mint Successful!</h2>
-                  <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">Your NFT has been minted and will appear in your dashboard shortly.</p>
+                  <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">
+                    Your NFT has been minted and will appear in your dashboard
+                    shortly.
+                  </p>
                   <div className="mt-6 w-full rounded-xl border border-white/5 bg-black/30 p-4 text-left">
-                    <p className="text-zinc-600 text-xs mb-2">Transaction Hash</p>
+                    <p className="text-zinc-600 text-xs mb-2">
+                      Transaction Hash
+                    </p>
                     <p className="font-mono text-emerald-400 text-xs break-all leading-relaxed">
                       {txHash}
                     </p>
@@ -422,7 +421,9 @@ export default function MintPage() {
                   {isConnected ? (
                     <div className="rounded-xl border border-white/5 bg-black/25 px-4 py-3 mb-5 flex items-center justify-between">
                       <div>
-                        <p className="text-zinc-600 text-xs">Connected Wallet</p>
+                        <p className="text-zinc-600 text-xs">
+                          Connected Wallet
+                        </p>
                         <p className="font-mono text-sm text-zinc-200 mt-0.5">
                           {address?.slice(0, 6)}...{address?.slice(-4)}
                         </p>
@@ -441,14 +442,20 @@ export default function MintPage() {
                     </div>
                   ) : (
                     <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3 mb-5">
-                      <p className="text-zinc-600 text-sm">Connect your wallet to mint</p>
+                      <p className="text-zinc-600 text-sm">
+                        Connect your wallet to mint
+                      </p>
                     </div>
                   )}
 
                   <div className="rounded-xl border border-white/5 bg-black/20 p-4 mb-5">
                     <div className="flex justify-between text-sm mb-3">
                       <span className="text-zinc-500">Mint Price</span>
-                      <span className={`font-bold ${isFree ? "text-emerald-400" : "text-white"}`}>
+                      <span
+                        className={`font-bold ${
+                          isFree ? "text-emerald-400" : "text-white"
+                        }`}
+                      >
                         {mintPriceLabel}
                       </span>
                     </div>
@@ -462,7 +469,11 @@ export default function MintPage() {
                     </div>
                     <div className="border-t border-white/5 mt-3 pt-3 flex justify-between text-sm">
                       <span className="text-zinc-400 font-bold">Total</span>
-                      <span className={`font-black ${isFree ? "text-emerald-400" : "text-white"}`}>
+                      <span
+                        className={`font-black ${
+                          isFree ? "text-emerald-400" : "text-white"
+                        }`}
+                      >
                         {isFree ? "Gas Only" : mintPriceLabel}
                       </span>
                     </div>
@@ -492,7 +503,11 @@ export default function MintPage() {
                     }`}
                   >
                     {isPending && (
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <svg
+                        className="animate-spin w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
                         <circle
                           className="opacity-25"
                           cx="12"
