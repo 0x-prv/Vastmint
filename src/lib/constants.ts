@@ -5,6 +5,6 @@ export const MARKETPLACE_POLL_INTERVAL_MS = 10_000;
 
 export function resolveIpfs(uri: string): string {
   if (!uri) return "";
-  if (uri.startsWith("ipfs://")) return ${"$"}{IPFS_GATEWAY}{uri.slice(7)};
+  if (uri.startsWith("ipfs://")) return `${IPFS_GATEWAY}${uri.slice(7)}`;
   return uri;
 }

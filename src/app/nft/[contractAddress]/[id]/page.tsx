@@ -1,4 +1,5 @@
 "use client";
+
 import { getLogsInSafeChunks } from "@/lib/blockchain/listings";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
@@ -26,8 +27,6 @@ import {
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function resolveIpfs(uri: string): string {
   if (!uri) return "";
   if (uri.startsWith("ipfs://")) return `${IPFS_GATEWAY}${uri.slice(7)}`;
@@ -54,8 +53,6 @@ async function fetchMetadata(uri: string): Promise<{
   }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface CollectionInfo {
   contractAddress: `0x${string}`;
   creator: `0x${string}`;
@@ -77,41 +74,36 @@ interface ActivityItem {
   txHash: string;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function NFTDetailPage() {
   const { contractAddress, id } = useParams<{ contractAddress: string; id: string }>();
 
-  // Safe tokenId parse — no external function needed
+  // #23 fix — invalid token ID shows error instead of silently becoming 0
   const tokenId = (() => {
     try {
-      return BigInt(id ?? "0");
+      const parsed = BigInt(id ?? "");
+      if (parsed < 0n) throw new Error("negative");
+      return parsed;
     } catch {
-      return 0n;
+      return null;
     }
   })();
 
   const { address: connectedAddress } = useAccount();
-  const publicClient = usePublicClient();
+  // #14 fix — explicitly scoped to Ritual chain
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
   const [copied, setCopied] = useState(false);
-
-  // Metadata state
   const [tokenName, setTokenName] = useState("");
   const [tokenDescription, setTokenDescription] = useState("");
   const [tokenImage, setTokenImage] = useState("");
   const [metaLoading, setMetaLoading] = useState(true);
-
-  // Activity state
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
-
-  // Buy state
-  const [buyState, setBuyState] = useState<
-    "idle" | "switching" | "pending" | "confirming" | "success" | "error"
+ const [buyState, setBuyState] = useState<
+  "idle" | "switching" | "pending" | "confirming" | "success" | "error"
   >("idle");
   const [buyTxHash, setBuyTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [buyError, setBuyError] = useState<string | null>(null);
@@ -156,8 +148,6 @@ export default function NFTDetailPage() {
     }
   }
 
-  // ── Contract reads ────────────────────────────────────────────────────────
-
   const { data: allCollections } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
     abi: VASTMINT_FACTORY_ABI,
@@ -181,18 +171,18 @@ export default function NFTDetailPage() {
     address: contractAddress as `0x${string}`,
     abi: VASTMINT_NFT_ABI,
     functionName: "tokenURI",
-    args: [tokenId],
+    args: [tokenId ?? 0n],
     chainId: RITUAL_CHAIN_ID,
-    query: { enabled: Boolean(contractAddress) && Boolean(id) },
+    query: { enabled: Boolean(contractAddress) && tokenId !== null },
   });
 
   const { data: ownerOf, isLoading: ownerLoading } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: VASTMINT_NFT_ABI,
     functionName: "ownerOf",
-    args: [tokenId],
+    args: [tokenId ?? 0n],
     chainId: RITUAL_CHAIN_ID,
-    query: { enabled: Boolean(contractAddress) && Boolean(id) },
+    query: { enabled: Boolean(contractAddress) && tokenId !== null },
   });
 
   const { data: contractListings } = useReadContract({
@@ -205,10 +195,8 @@ export default function NFTDetailPage() {
   });
 
   const activeListing = contractListings?.find(
-    (l) => l.active && l.tokenId === tokenId
+    (l) => l.active && l.tokenId === (tokenId ?? 0n)
   );
-
-  // ── Fetch token metadata ──────────────────────────────────────────────────
 
   useEffect(() => {
     if (!tokenURIData) return;
@@ -221,11 +209,8 @@ export default function NFTDetailPage() {
     });
   }, [tokenURIData]);
 
-  // ── Fetch Transfer activity ───────────────────────────────────────────────
-
   useEffect(() => {
-    if (!publicClient || !contractAddress || !id) return;
-    const logTokenId = BigInt(id);
+    if (!publicClient || !contractAddress || !id || tokenId === null) return;
     setActivityLoading(true);
 
     getLogsInSafeChunks(publicClient, {
@@ -233,16 +218,16 @@ export default function NFTDetailPage() {
       event: parseAbiItem(
         "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
       ),
-      args: { tokenId: logTokenId },
+      args: { tokenId },
     })
       .then((logs: { args: { from: unknown; to: unknown; tokenId: unknown }; transactionHash?: string }[]) => {
-  const items: ActivityItem[] = logs
+        const items: ActivityItem[] = logs
           .slice()
           .reverse()
           .slice(0, 10)
           .map((log: { args: { from: unknown; to: unknown }; transactionHash?: string }) => {
-  const from = log.args.from as string;
-  const to = log.args.to as string;
+            const from = log.args.from as string;
+            const to = log.args.to as string;
             const isMint = from === "0x0000000000000000000000000000000000000000";
             return {
               event: isMint ? "Mint" : "Transfer",
@@ -256,9 +241,7 @@ export default function NFTDetailPage() {
         setActivityLoading(false);
       })
       .catch(() => setActivityLoading(false));
-  }, [publicClient, contractAddress, id]);
-
-  // ── Derived values ────────────────────────────────────────────────────────
+  }, [publicClient, contractAddress, id, tokenId]);
 
   const minted = totalSupply ? Number(totalSupply) : 0;
   const maxSupply = collectionInfo
@@ -289,7 +272,22 @@ export default function NFTDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── Loading / not found guards ────────────────────────────────────────────
+  // #23 — Invalid token ID guard
+  if (tokenId === null) {
+    return (
+      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-zinc-500 text-sm">Invalid token ID.</p>
+          <a
+            href="/collections"
+            className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
+          >
+            Back to Collections
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   if (!allCollections) {
     return (
@@ -321,8 +319,6 @@ export default function NFTDetailPage() {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
@@ -330,7 +326,6 @@ export default function NFTDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-zinc-600 mb-8">
           <a href="/collections" className="hover:text-zinc-400 transition">Collections</a>
           <span>/</span>
@@ -342,9 +337,7 @@ export default function NFTDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* ── Left column ── */}
           <div className="space-y-4">
-            {/* Image */}
             <div className="rounded-2xl overflow-hidden border border-[#077345]/20 bg-[#0b1f17] aspect-square relative group flex items-center justify-center">
               {metaLoading ? (
                 <div className="w-full h-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] animate-pulse" />
@@ -375,7 +368,6 @@ export default function NFTDetailPage() {
               )}
             </div>
 
-            {/* Details card */}
             <div className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] p-5">
               <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4">Details</p>
               <div className="space-y-3">
@@ -412,9 +404,7 @@ export default function NFTDetailPage() {
             </div>
           </div>
 
-          {/* ── Right column ── */}
           <div className="space-y-6">
-            {/* Title + description */}
             <div>
               <p className="text-[#077345] uppercase tracking-[0.2em] text-xs font-bold mb-2">
                 {collectionInfo.name}
@@ -431,7 +421,6 @@ export default function NFTDetailPage() {
               )}
             </div>
 
-            {/* Owner */}
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#077345]/20 border border-[#077345]/30 flex items-center justify-center flex-shrink-0">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-[#077345]">
@@ -457,9 +446,7 @@ export default function NFTDetailPage() {
               </div>
             </div>
 
-            {/* Price + actions card */}
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-6 space-y-5">
-              {/* Price display */}
               {activeListing ? (
                 <div>
                   <p className="text-zinc-600 text-xs uppercase tracking-widest mb-1">Listed Price</p>
@@ -482,9 +469,7 @@ export default function NFTDetailPage() {
                 </div>
               )}
 
-              {/* Action buttons */}
               <div className="flex flex-col gap-3">
-                {/* Buy button — only if listed and not owner */}
                 {activeListing && !isOwner && buyState !== "success" && (
                   <>
                     {buyError && (
@@ -518,7 +503,6 @@ export default function NFTDetailPage() {
                   </>
                 )}
 
-                {/* Owner message */}
                 {activeListing && isOwner && (
                   <div className="rounded-xl border border-emerald-700/20 bg-emerald-900/10 px-4 py-3">
                     <p className="text-emerald-400 text-sm text-center">
@@ -527,14 +511,12 @@ export default function NFTDetailPage() {
                   </div>
                 )}
 
-                {/* Buy success */}
                 {buyState === "success" && (
                   <div className="rounded-xl border border-emerald-700/30 bg-emerald-900/20 px-4 py-3 text-center">
                     <p className="text-emerald-400 font-bold">Purchase successful! 🎉</p>
                   </div>
                 )}
 
-                {/* Mint link — only if not listed */}
                 {!activeListing && (
                   <a
                     href={`/collections/${collectionInfo.slug}/mint`}
@@ -555,7 +537,6 @@ export default function NFTDetailPage() {
               </div>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-3 gap-3">
               {[
                 ["Supply", maxSupply],
@@ -572,7 +553,6 @@ export default function NFTDetailPage() {
               ))}
             </div>
 
-            {/* Activity */}
             <div className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] overflow-hidden">
               <div className="px-5 py-4 border-b border-[#077345]/10">
                 <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Activity</p>
@@ -624,8 +604,7 @@ export default function NFTDetailPage() {
               )}
             </div>
 
-            {/* Footer explorer link */}
-            <a
+          <a
               href={`${EXPLORER_URL}/token/${contractAddress}`}
               target="_blank"
               rel="noopener noreferrer"
