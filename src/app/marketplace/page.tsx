@@ -102,6 +102,7 @@ type CollectionInfo = {
   contractAddress: `0x${string}`;
   image: string;
   name: string;
+  symbol: string; // 
 };
 
 function NFTCard({
@@ -283,7 +284,7 @@ function CancelButton({
   onSuccess: () => void;
 }) {
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const [cancelling, setCancelling] = useState(false);
 
   async function handleCancel() {
@@ -435,13 +436,19 @@ function MarketplacePage() {
 
   const sortedListings = listings
     ? [...listings]
-        .filter((l) =>
-          searchQuery
-            ? `token #${l.tokenId.toString()}`.includes(searchQuery) ||
-              l.seller.toLowerCase().includes(searchQuery) ||
-              l.nftContract.toLowerCase().includes(searchQuery)
-            : true
-        )
+        .filter((l) => {
+  if (!searchQuery) return true;
+  const collection = collections.find(
+    (c) => c.contractAddress.toLowerCase() === l.nftContract.toLowerCase()
+  );
+  return (
+    `token #${l.tokenId.toString()}`.includes(searchQuery) ||
+    l.seller.toLowerCase().includes(searchQuery) ||
+    l.nftContract.toLowerCase().includes(searchQuery) ||
+    collection?.name?.toLowerCase().includes(searchQuery) ||
+    collection?.symbol?.toLowerCase().includes(searchQuery)
+  );
+})
         .sort((a, b) => {
           if (activeFilter === "Cheapest") return Number(a.price - b.price);
           if (activeFilter === "Most Recent")
