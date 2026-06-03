@@ -1,40 +1,61 @@
-<<<<<<< HEAD
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VastMint
+
+A Ritual-native NFT launchpad and marketplace built on Ritual Testnet.
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, Tailwind CSS
+- **Web3**: Wagmi v2, Viem v2, RainbowKit
+- **Chain**: Ritual Testnet (Chain ID 1979)
+- **Contracts**: Solidity 0.8.28, Hardhat, OpenZeppelin
+- **Storage**: Pinata IPFS
 
 ## Getting Started
 
-First, run the development server:
+### 1. Install dependencies
 
-```bash
+npm install
+
+### 2. Set up environment variables
+
+cp .env.example .env.local
+
+Fill in the required values in .env.local
+
+### 3. Run the development server
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| PINATA_JWT | Yes | Pinata API JWT for IPFS uploads |
+| NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID | Yes | WalletConnect project ID |
+| PRIVATE_KEY | For deployment | Wallet private key for Hardhat deploy |
+| RITUAL_RPC_URL | No | Defaults to https://rpc.ritualfoundation.org |
+| NEXT_PUBLIC_MARKETPLACE_ADDRESS | No | Override default marketplace address |
 
-## Learn More
+## Smart Contracts
 
-To learn more about Next.js, take a look at the following resources:
+Deployed on Ritual Testnet (Chain ID 1979):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Contract | Address |
+|----------|---------|
+| VastMintNFT | 0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067 |
+| VastMintFactory | 0x5b36c10990e7bAE1f9b92759600e3385058DfC44 |
+| VastMintMarketplace | 0x35CFdfD9D7372510Ff26876a5675754A7c343bf6 |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+npm run dev        # Start dev server
+npm run build      # Build for production
+npm run start      # Start production server
+npm run lint       # Run ESLint
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Contract Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-=======
-# Vastmint
->>>>>>> ac5b6f4ac0929ade7ac91603635da0470fc9f4e1
+npx hardhat run scripts/deployFactory.js --network ritual
+npx hardhat run scripts/deployMarketplace.js --network ritual
