@@ -4,9 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useChainId, useSwitchChain, useReadContract } from "wagmi";
-import { VASTMINT_NFT_ADDRESS, VASTMINT_MARKETPLACE_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
-import { VASTMINT_NFT_ABI, VASTMINT_MARKETPLACE_ABI } from "@/lib/blockchain/abi";
+import { useAccount, useChainId, useSwitchChain, useReadContract, useReadContracts } from "wagmi";
+import {
+  VASTMINT_NFT_ADDRESS,
+  VASTMINT_MARKETPLACE_ADDRESS,
+  VASTMINT_FACTORY_ADDRESS,
+  RITUAL_CHAIN_ID,
+} from "@/lib/blockchain/contracts";
+import { VASTMINT_NFT_ABI, VASTMINT_MARKETPLACE_ABI, VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const NAV_ITEMS = [
   {
@@ -75,14 +80,43 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const isWrongNetwork = isConnected && chainId !== undefined && chainId !== RITUAL_CHAIN_ID;
 
-  const { data: nftBalance } = useReadContract({
-    address: VASTMINT_NFT_ADDRESS as `0x${string}`,
-    abi: VASTMINT_NFT_ABI,
-    functionName: "balanceOf",
-    args: [address!],
+  // Fetch all collections from factory
+  const { data: allCollections } = useReadContract({
+    address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
+    abi: VASTMINT_FACTORY_ABI,
+    functionName: "getAllCollections",
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: !!address },
   });
+
+  // Build multicall — balanceOf per collection + the legacy NFT address
+  const collections = (allCollections as { contractAddress: `0x${string}` }[] | undefined) ?? [];
+  const allAddresses = [
+    VASTMINT_NFT_ADDRESS as `0x${string}`,
+    ...collections.map((c) => c.contractAddress),
+  ];
+  // Deduplicate in case VASTMINT_NFT_ADDRESS is already in factory collections
+  const uniqueAddresses = [...new Set(allAddresses)];
+
+  const balanceContracts = uniqueAddresses.map((addr) => ({
+    address: addr,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "balanceOf" as const,
+    args: [address!] as [`0x${string}`],
+    chainId: RITUAL_CHAIN_ID,
+  }));
+
+  const { data: balanceResults } = useReadContracts({
+    contracts: balanceContracts,
+    query: { enabled: !!address && balanceContracts.length > 0 },
+  });
+
+  // Sum all balances across every collection
+  const nftBalance =
+    balanceResults?.reduce((sum, result) => {
+      const val = result.status === "success" ? Number(result.result) : 0;
+      return sum + val;
+    }, 0) ?? 0;
 
   const { data: myListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
@@ -192,7 +226,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 <div className="rounded-lg bg-black/30 px-2.5 py-2 text-center">
                   <p className="text-[10px] text-zinc-600">NFTs</p>
                   <p className="text-white font-black text-sm mt-0.5">
-                    {nftBalance ? Number(nftBalance).toString() : "0"}
+                    {nftBalance.toString()}
                   </p>
                 </div>
                 <div className="rounded-lg bg-black/30 px-2.5 py-2 text-center">
