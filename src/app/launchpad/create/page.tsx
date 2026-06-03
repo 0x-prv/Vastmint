@@ -119,15 +119,18 @@ export default function LaunchpadCreatePage() {
       };
 
       const metaRes = await fetch("/api/pinata/json", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pinataContent: metadata,
-          pinataMetadata: { name: `${name}-metadata` },
-        }),
-      });
+     method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    pinataContent: metadata,
+    pinataMetadata: { name: `${name}-metadata` },
+  }),
+});
 
-      if (!metaRes.ok) throw new Error("Metadata upload failed");
+if (!metaRes.ok) throw new Error("Metadata upload failed");
+const metaData = await metaRes.json();
+const metadataCid = metaData.IpfsHash as string;
+if (!metadataCid) throw new Error("Metadata CID missing");
 
       // Step 3: Switch network if needed
       if (isWrongNetwork) {
@@ -148,7 +151,7 @@ export default function LaunchpadCreatePage() {
           name.trim(),
           symbol.trim().toUpperCase(),
           description.trim(),
-          `ipfs://${cid}`,
+          `ipfs://${metadataCid}`,
           BigInt(supply),
           mintPriceWei,
           slug,

@@ -97,3 +97,48 @@ export async function fetchMarketplaceListings(
         !nftContract || listing.nftContract.toLowerCase() === nftContract
     );
 }
+
+import { parseAbiItem } from "viem";
+
+type SafeChunkParams = {
+  address: `0x${string}`;
+  event: ReturnType<typeof parseAbiItem>;
+  args?: Record<string, unknown>;
+  fromBlock?: bigint;
+};
+
+export async function getLogsInSafeChunks(
+  publicClient: PublicClient,
+  params: SafeChunkParams
+) {
+  const latestBlock = await publicClient.getBlockNumber();
+  const fromBlock =
+    params.fromBlock ??
+    (latestBlock > 99_999n ? latestBlock - 99_999n : 0n);
+
+  const chunkSize = 2_000n;
+  const allLogs: unknown[] = [];
+
+  for (let start = fromBlock; start <= latestBlock; start += chunkSize) {
+    const end =
+      start + chunkSize - 1n > latestBlock
+        ? latestBlock
+        : start + chunkSize - 1n;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const logs = await (publicClient as any).getLogs({
+        address: params.address,
+        event: params.event,
+        args: params.args,
+        fromBlock: start,
+        toBlock: end,
+      });
+      allLogs.push(...logs);
+    } catch {
+      // skip failed chunk
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return allLogs as any[];
+}

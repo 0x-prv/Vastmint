@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
 import { parseEther } from "viem";
 import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
-
+import {
+  useAccount,
+  useChainId,
+  useSwitchChain,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
 
 const steps = ["Details", "Image", "Deploy", "Success"];
 
@@ -25,29 +30,42 @@ export default function LaunchpadCreatePage() {
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
+  // ── State ──────────────────────────────────────────────────────────────────
+
   const [step, setStep] = useState(0);
 
-  // Step 1 fields
+  // Step 0 fields
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [description, setDescription] = useState("");
   const [maxSupply, setMaxSupply] = useState("");
   const [mintPrice, setMintPrice] = useState("");
 
-  // Step 2
+  // Step 1 — image
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [ipfsImageUrl, setIpfsImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Step 3
+  // Step 2 — deploy
   const [deploying, setDeploying] = useState(false);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployedSlug, setDeployedSlug] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
 
-  const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
+  // ── Wait for tx confirmation then go to success ────────────────────────────
+
+  const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+    query: { enabled: !!txHash },
+  });
+
+  useEffect(() => {
+    if (txConfirmed) setStep(3);
+  }, [txConfirmed]);
+
+  // ── Cleanup image preview URL ──────────────────────────────────────────────
 
   useEffect(() => {
     return () => {
@@ -55,12 +73,20 @@ export default function LaunchpadCreatePage() {
     };
   }, [imagePreview]);
 
-  // Validation per step
-  const step0Valid = name.trim().length > 0 && symbol.trim().length > 0 && description.trim().length > 0 && Number(maxSupply) > 0;
-  const step1Valid = !!ipfsImageUrl;
-  const step2Valid = step0Valid && step1Valid;
+  const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
 
-  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // ── Validation ─────────────────────────────────────────────────────────────
+
+  const step0Valid =
+    name.trim().length > 0 &&
+    symbol.trim().length > 0 &&
+    description.trim().length > 0 &&
+    Number(maxSupply) > 0;
+  const step1Valid = !!ipfsImageUrl;
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
@@ -73,22 +99,16 @@ export default function LaunchpadCreatePage() {
     if (!imageFile) return;
     setUploading(true);
     setUploadError(null);
-
     try {
       const formData = new FormData();
       formData.append("file", imageFile);
       formData.append("pinataMetadata", JSON.stringify({ name: `${name}-image` }));
 
-      const res = await fetch("/api/pinata/file", {
-        method: "POST",
-        body: formData,
-      });
-
+      const res = await fetch("/api/pinata/file", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Upload failed");
 
       const data = await res.json();
-      const ipfsUrl = `ipfs://${data.IpfsHash}`;
-      setIpfsImageUrl(ipfsUrl);
+      setIpfsImageUrl(`ipfs://${data.IpfsHash}`);
     } catch (err) {
       console.error(err);
       setUploadError("Upload failed. Please try again.");
@@ -98,10 +118,9 @@ export default function LaunchpadCreatePage() {
   }
 
   async function handleDeploy() {
-    if (!address || !step2Valid) return;
+    if (!address || !step0Valid || !ipfsImageUrl) return;
     setDeploying(true);
     setDeployError(null);
-
     try {
       if (isWrongNetwork) {
         await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
@@ -118,7 +137,7 @@ export default function LaunchpadCreatePage() {
           name.trim(),
           symbol.trim().toUpperCase(),
           description.trim(),
-          ipfsImageUrl!,
+          ipfsImageUrl,          // collection thumbnail — image CID, tama ito
           BigInt(maxSupply),
           priceWei,
           slug,
@@ -127,18 +146,21 @@ export default function LaunchpadCreatePage() {
 
       setTxHash(tx);
       setDeployedSlug(slug);
-      setStep(3);
+      // setStep(3) will be triggered by useWaitForTransactionReceipt above
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Deploy failed";
-      const short = message.includes("rejected") || message.includes("denied")
-        ? "Transaction rejected."
-        : "Deploy failed. Try again.";
-      setDeployError(short);
+      setDeployError(
+        message.includes("rejected") || message.includes("denied")
+          ? "Transaction rejected."
+          : "Deploy failed. Try again."
+      );
     } finally {
       setDeploying(false);
     }
   }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <main className="min-h-screen bg-[#05150f] px-4 sm:px-6 pt-10 pb-24 text-white">
@@ -185,10 +207,11 @@ export default function LaunchpadCreatePage() {
                   placeholder="Ritual Genesis Pass"
                 />
                 {name && (
-                  <p className="text-zinc-600 text-xs mt-1">Slug: <span className="text-zinc-400 font-mono">{slugify(name)}</span></p>
+                  <p className="text-zinc-600 text-xs mt-1">
+                    Slug: <span className="text-zinc-400 font-mono">{slugify(name)}</span>
+                  </p>
                 )}
               </div>
-
               <div>
                 <label className="block text-sm text-zinc-400 mb-1.5">Symbol *</label>
                 <input
@@ -199,7 +222,6 @@ export default function LaunchpadCreatePage() {
                   maxLength={10}
                 />
               </div>
-
               <div>
                 <label className="block text-sm text-zinc-400 mb-1.5">Description *</label>
                 <textarea
@@ -210,7 +232,6 @@ export default function LaunchpadCreatePage() {
                   placeholder="Describe your collection..."
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-zinc-400 mb-1.5">Max Supply *</label>
@@ -223,7 +244,6 @@ export default function LaunchpadCreatePage() {
                     min="1"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm text-zinc-400 mb-1.5">Mint Price (RITUAL)</label>
                   <input
@@ -243,20 +263,16 @@ export default function LaunchpadCreatePage() {
           {/* STEP 1 — Image Upload */}
           {step === 1 && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-400">Upload your collection image. This will be stored on IPFS via Pinata.</p>
-
-              {/* Upload area */}
+              <p className="text-sm text-zinc-400">
+                Upload your collection image. This will be stored on IPFS via Pinata.
+              </p>
               <label className="block cursor-pointer">
                 <div className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
                   imagePreview ? "border-[#077345]/40" : "border-white/10 hover:border-[#077345]/30"
                 }`}>
                   {imagePreview ? (
                     <div className="flex flex-col items-center gap-3">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-32 h-32 rounded-xl object-cover"
-                      />
+                      <img src={imagePreview} alt="Preview" className="w-32 h-32 rounded-xl object-cover" />
                       <p className="text-zinc-500 text-xs">{imageFile?.name}</p>
                       <p className="text-zinc-600 text-xs">Click to change</p>
                     </div>
@@ -274,15 +290,9 @@ export default function LaunchpadCreatePage() {
                     </div>
                   )}
                 </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageChange}
-                />
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
               </label>
 
-              {/* Upload to IPFS button */}
               {imageFile && !ipfsImageUrl && (
                 <button
                   onClick={handleUpload}
@@ -299,7 +309,6 @@ export default function LaunchpadCreatePage() {
                 </button>
               )}
 
-              {/* IPFS success */}
               {ipfsImageUrl && (
                 <div className="rounded-xl border border-emerald-700/30 bg-emerald-900/15 px-4 py-3 flex items-center gap-3">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2">
@@ -312,9 +321,7 @@ export default function LaunchpadCreatePage() {
                 </div>
               )}
 
-              {uploadError && (
-                <p className="text-red-400 text-sm">{uploadError}</p>
-              )}
+              {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
             </div>
           )}
 
@@ -322,8 +329,6 @@ export default function LaunchpadCreatePage() {
           {step === 2 && (
             <div className="space-y-4">
               <p className="text-sm text-zinc-400">Review your collection before deploying to Ritual Testnet.</p>
-
-              {/* Summary */}
               <div className="rounded-xl bg-black/30 border border-white/5 p-4 space-y-3">
                 {ipfsImageUrl && (
                   <div className="flex justify-center mb-2">
@@ -385,12 +390,10 @@ export default function LaunchpadCreatePage() {
                   <path d="M6 14L11 19L22 8" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-
               <div>
                 <h2 className="text-2xl font-black">Collection Deployed! 🎉</h2>
                 <p className="text-zinc-500 text-sm mt-2">Your collection is live on Ritual Testnet.</p>
               </div>
-
               {txHash && (
                 <div className="rounded-xl border border-white/5 bg-black/30 p-4 text-left">
                   <p className="text-zinc-600 text-xs mb-1">Transaction Hash</p>
@@ -404,7 +407,6 @@ export default function LaunchpadCreatePage() {
                   </a>
                 </div>
               )}
-
               <div className="flex flex-col gap-3">
                 {deployedSlug && (
                   <Link
@@ -424,7 +426,7 @@ export default function LaunchpadCreatePage() {
             </div>
           )}
 
-          {/* Navigation buttons */}
+          {/* Navigation */}
           {step < 3 && (
             <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4">
               <button
@@ -434,14 +436,10 @@ export default function LaunchpadCreatePage() {
               >
                 Previous
               </button>
-
               {step < 2 && (
                 <button
                   onClick={() => setStep((s) => s + 1)}
-                  disabled={
-                    (step === 0 && !step0Valid) ||
-                    (step === 1 && !step1Valid)
-                  }
+                  disabled={(step === 0 && !step0Valid) || (step === 1 && !step1Valid)}
                   className="rounded-xl bg-[#077345] hover:bg-[#066039] disabled:opacity-40 disabled:cursor-not-allowed transition px-5 py-2 text-sm font-bold text-white"
                 >
                   Continue

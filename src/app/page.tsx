@@ -32,11 +32,11 @@ type Listing = {
   createdAt: bigint;
 };
 
-const GENESIS_PASS_IMAGE =
+const FALLBACK_IMAGE =
   "https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4";
 
 function resolveImage(image: string) {
-  if (!image) return GENESIS_PASS_IMAGE;
+  if (!image) return FALLBACK_IMAGE;
   if (image.startsWith("ipfs://"))
     return `https://ipfs.io/ipfs/${image.replace("ipfs://", "")}`;
   return image;
@@ -62,8 +62,14 @@ export default function HomePage() {
   });
 
   const allCollections = [...((collections as Collection[] | undefined) ?? [])];
-
   const featuredListings = ((activeListings as Listing[] | undefined) ?? []).slice(0, 4);
+
+  // Helper: get collection info for a listing
+  function getCollectionForListing(listing: Listing): Collection | undefined {
+    return allCollections.find(
+      (c) => c.contractAddress.toLowerCase() === listing.nftContract.toLowerCase()
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#05150f] text-white overflow-hidden">
@@ -78,7 +84,7 @@ export default function HomePage() {
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-700/30 bg-emerald-900/20 px-4 py-1.5 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <p className="text-emerald-400 uppercase tracking-[0.2em] text-xs font-bold">
-             Live on Ritual Testnet
+              Live on Ritual Testnet
             </p>
           </div>
 
@@ -142,78 +148,95 @@ export default function HomePage() {
               />
             ))
           ) : featuredListings.length > 0 ? (
-            featuredListings.map((listing) => (
+            // ── Real listings — show actual collection image and name ──
+            featuredListings.map((listing) => {
+              const col = getCollectionForListing(listing);
+              const image = col ? resolveImage(col.image) : FALLBACK_IMAGE;
+              const nftName = col
+                ? `${col.name} #${Number(listing.tokenId)}`
+                : `Token #${Number(listing.tokenId)}`;
+
+              return (
+                <Link
+                  key={listing.listingId}
+                  href={`/nft/${listing.nftContract}/${listing.tokenId}`}
+                  className="min-w-[320px] rounded-2xl overflow-hidden border border-[#077345]/15 bg-[#0b1f17] group flex-shrink-0 hover:border-[#077345]/40 transition"
+                >
+                  <div className="h-[380px] relative overflow-hidden bg-[#0d2518]">
+                    <img
+                      src={image}
+                      alt={nftName}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
+                    <div className="absolute top-4 left-4">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/50 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                        Listed
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-black">{nftName}</h3>
+                        <p className="text-zinc-600 text-xs mt-0.5">
+                          {shortAddress(listing.seller)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-zinc-600 text-xs">Price</p>
+                        <p className="text-emerald-400 font-black">
+                          {Number(listing.price) / 1e18} RITUAL
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            // ── Fallback — show first real collection, or empty state ──
+            allCollections.length > 0 ? (
               <Link
-                key={listing.listingId}
-                href={`/nft/${listing.nftContract}/${listing.tokenId}`}
+                href={`/collections/${allCollections[0].slug}/mint`}
                 className="min-w-[320px] rounded-2xl overflow-hidden border border-[#077345]/15 bg-[#0b1f17] group flex-shrink-0 hover:border-[#077345]/40 transition"
               >
                 <div className="h-[380px] relative overflow-hidden bg-[#0d2518]">
                   <img
-                    src={GENESIS_PASS_IMAGE}
-                    alt={`Token #${listing.tokenId}`}
+                    src={resolveImage(allCollections[0].image)}
+                    alt={allCollections[0].name}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
                   <div className="absolute top-4 left-4">
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/50 px-2.5 py-1 text-xs font-bold text-emerald-400">
-                      Listed
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Live Mint
                     </span>
                   </div>
                 </div>
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-black">
-                        Genesis #{Number(listing.tokenId)}
-                      </h3>
-                      <p className="text-zinc-600 text-xs mt-0.5">
-                        {shortAddress(listing.seller)}
-                      </p>
+                      <h3 className="text-lg font-black">{allCollections[0].name}</h3>
+                      <p className="text-zinc-600 text-xs mt-0.5">by VastMint</p>
                     </div>
                     <div className="text-right">
                       <p className="text-zinc-600 text-xs">Price</p>
                       <p className="text-emerald-400 font-black">
-                        {Number(listing.price) / 1e18} RITUAL
+                        {allCollections[0].mintPrice === 0n
+                          ? "Free"
+                          : `${Number(allCollections[0].mintPrice) / 1e18} RITUAL`}
                       </p>
                     </div>
                   </div>
                 </div>
               </Link>
-            ))
-          ) : (
-            /* Fallback — Genesis Pass card pag walang listings */
-            <Link
-              href={`/nft/0x8b9249CE8621a3C9517DB61E82238E271f7adafD/0`}
-              className="min-w-[320px] rounded-2xl overflow-hidden border border-[#077345]/15 bg-[#0b1f17] group flex-shrink-0 hover:border-[#077345]/40 transition"
-            >
-              <div className="h-[380px] relative overflow-hidden bg-[#0d2518]">
-                <img
-                  src={GENESIS_PASS_IMAGE}
-                  alt="Ritual Genesis Pass"
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
-                <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/50 px-2.5 py-1 text-xs font-bold text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Live Mint
-                  </span>
-                </div>
+            ) : (
+              <div className="min-w-[320px] rounded-2xl border border-[#077345]/10 bg-[#0b1f17] flex items-center justify-center h-[480px] flex-shrink-0">
+                <p className="text-zinc-600 text-sm">No collections yet</p>
               </div>
-              <div className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-black">Ritual Genesis Pass</h3>
-                    <p className="text-zinc-600 text-xs mt-0.5">by VastMint</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-zinc-600 text-xs">Price</p>
-                    <p className="text-emerald-400 font-black">Free</p>
-                  </div>
-                </div>
-              </div>
-            </Link>
+            )
           )}
         </div>
       </section>
@@ -257,6 +280,12 @@ export default function HomePage() {
                       </td>
                     </tr>
                   ))
+                ) : allCollections.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-zinc-600 text-sm">
+                      No collections yet. Be the first to launch!
+                    </td>
+                  </tr>
                 ) : (
                   allCollections.map((col, i) => {
                     const isFree = col.mintPrice === BigInt(0);
@@ -280,9 +309,7 @@ export default function HomePage() {
                             </div>
                             <div>
                               <p className="font-black text-sm">{col.name}</p>
-                              <p className="text-zinc-600 text-xs font-mono">
-                                {col.symbol}
-                              </p>
+                              <p className="text-zinc-600 text-xs font-mono">{col.symbol}</p>
                             </div>
                           </div>
                         </td>
@@ -290,14 +317,8 @@ export default function HomePage() {
                           {Number(col.maxSupply).toLocaleString()}
                         </td>
                         <td className="px-4 py-5">
-                          <span
-                            className={`text-sm font-black ${
-                              isFree ? "text-emerald-400" : "text-white"
-                            }`}
-                          >
-                            {isFree
-                              ? "Free"
-                              : `${Number(col.mintPrice) / 1e18} RITUAL`}
+                          <span className={`text-sm font-black ${isFree ? "text-emerald-400" : "text-white"}`}>
+                            {isFree ? "Free" : `${Number(col.mintPrice) / 1e18} RITUAL`}
                           </span>
                         </td>
                         <td className="px-4 py-5">
