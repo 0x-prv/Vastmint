@@ -68,22 +68,27 @@ export async function fetchMarketplaceListings(
     (_, index) => BigInt(index + 1)
   );
 
-  const results = await publicClient.multicall({
-    contracts: listingIds.map((listingId) => ({
-      ...marketplaceContract,
-      functionName: "listings",
-      args: [listingId],
-    })),
-    allowFailure: true,
-  });
+  const results = await Promise.all(
+    listingIds.map(async (listingId) => {
+      try {
+        return await publicClient.readContract({
+          ...marketplaceContract,
+          functionName: "listings",
+          args: [listingId],
+        });
+      } catch {
+        return null;
+      }
+    })
+  );
 
   const seller = filter.seller?.toLowerCase();
   const nftContract = filter.nftContract?.toLowerCase();
 
   return results
     .flatMap((result) => {
-      if (result.status !== "success") return [];
-      return [normalizeListing(result.result as unknown as MarketplaceListing)];
+      if (!result) return [];
+      return [normalizeListing(result as unknown as MarketplaceListing)];
     })
     .filter((listing) => listing.active)
     .filter((listing) => !seller || listing.seller.toLowerCase() === seller)
