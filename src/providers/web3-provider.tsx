@@ -40,7 +40,7 @@ const ritualTestnet = defineChain({
 
 const config = getDefaultConfig({
   appName: "VastMint",
-  projectId: "649863a507ae8d13fad4d51ffa1e23b8",
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
   chains: [ritualTestnet],
   ssr: true,
 });
