@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useReadContract, useAccount, usePublicClient } from "wagmi";
 import { parseAbiItem } from "viem";
@@ -14,6 +15,7 @@ import {
   VASTMINT_FACTORY_ABI,
   VASTMINT_MARKETPLACE_ABI,
 } from "@/lib/blockchain/abi";
+import { getLogsInSafeChunks } from "@/lib/blockchain/logs";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
@@ -69,18 +71,25 @@ interface ActivityItem {
   txHash: string;
 }
 
+function parseTokenId(id?: string) {
+  try {
+    return BigInt(id ?? "0");
+  } catch {
+    return 0n;
+  }
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NFTDetailPage() {
-  const { contractAddress, id } = useParams<{ contractAddress: string; id: string }>();
+  const { contractAddress, id } = useParams<{
+    contractAddress: string;
+    id: string;
+  }>();
   const tokenId = parseTokenId(id);
-  const normalizedContract = contractAddress?.toLowerCase();
   const { address: connectedAddress } = useAccount();
   const publicClient = usePublicClient();
   const [copied, setCopied] = useState(false);
-  const [metadata, setMetadata] = useState<TokenMetadata | null>(null);
-  const [metadataError, setMetadataError] = useState<string | null>(null);
-
   // Metadata state
   const [tokenName, setTokenName] = useState("");
   const [tokenDescription, setTokenDescription] = useState("");
@@ -113,10 +122,10 @@ export default function NFTDetailPage() {
     query: { enabled: Boolean(contractAddress) },
   });
 
-  const { data: tokenURI, isLoading: tokenURILoading } = useReadContract({
+  const { data: ownerOf, isLoading: ownerLoading } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: VASTMINT_NFT_ABI,
-    functionName: "tokenURI",
+    functionName: "ownerOf",
     args: [tokenId],
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: Boolean(contractAddress) && Boolean(id) },
@@ -126,7 +135,7 @@ export default function NFTDetailPage() {
     address: contractAddress as `0x${string}`,
     abi: VASTMINT_NFT_ABI,
     functionName: "tokenURI",
-    args: [BigInt(id ?? "0")],
+    args: [tokenId],
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: Boolean(contractAddress) && Boolean(id) },
   });
@@ -142,20 +151,27 @@ export default function NFTDetailPage() {
   });
 
   const activeListing = contractListings?.find(
-    (l) => l.active && l.tokenId === BigInt(id ?? "0")
+    (l) => l.active && l.tokenId === tokenId
   );
 
   // ── Fetch token metadata ──────────────────────────────────────────────────
 
   useEffect(() => {
     if (!tokenURIData) return;
-    setMetaLoading(true);
-    fetchMetadata(tokenURIData as string).then(({ name, description, image }) => {
-      setTokenName(name);
-      setTokenDescription(description);
-      setTokenImage(image);
-      setMetaLoading(false);
-    });
+
+    const timeout = window.setTimeout(() => {
+      setMetaLoading(true);
+      fetchMetadata(tokenURIData as string).then(
+        ({ name, description, image }) => {
+          setTokenName(name);
+          setTokenDescription(description);
+          setTokenImage(image);
+          setMetaLoading(false);
+        }
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [tokenURIData]);
 
   // ── Fetch Transfer activity ───────────────────────────────────────────────
@@ -163,46 +179,43 @@ export default function NFTDetailPage() {
   useEffect(() => {
     if (!publicClient || !contractAddress || !id) return;
 
-    const tokenId = BigInt(id);
-    setActivityLoading(true);
+    const timeout = window.setTimeout(() => {
+      setActivityLoading(true);
 
-    publicClient
-      .getLogs({
+      getLogsInSafeChunks(publicClient, {
         address: contractAddress as `0x${string}`,
         event: parseAbiItem(
           "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
         ),
         args: { tokenId },
-        fromBlock: 0n,
-      
-    })
-      .then(async (logs) => {
-        const items: ActivityItem[] = logs
-          .slice()
-          .reverse()
-          .slice(0, 10)
-          .map((log) => {
-            const from = log.args.from as string;
-            const to = log.args.to as string;
-            const isMint =
-              from === "0x0000000000000000000000000000000000000000";
-            const ts = Date.now(); // block timestamp not available without extra call
-
-            return {
-              event: isMint ? "Mint" : "Transfer",
-              from: isMint
-                ? "—"
-                : `${from.slice(0, 6)}…${from.slice(-4)}`,
-              to: `${to.slice(0, 6)}…${to.slice(-4)}`,
-              time: "On-chain",
-              txHash: log.transactionHash ?? "",
-            };
-          });
-        setActivity(items);
-        setActivityLoading(false);
       })
-      .catch(() => setActivityLoading(false));
-  }, [publicClient, contractAddress, id]);
+        .then(async (logs) => {
+          const items: ActivityItem[] = logs
+            .slice()
+            .reverse()
+            .slice(0, 10)
+            .map((log) => {
+              const from =
+                typeof log.args.from === "string" ? log.args.from : "";
+              const to = typeof log.args.to === "string" ? log.args.to : "";
+              const isMint =
+                from === "0x0000000000000000000000000000000000000000";
+              return {
+                event: isMint ? "Mint" : "Transfer",
+                from: isMint ? "—" : `${from.slice(0, 6)}…${from.slice(-4)}`,
+                to: to ? `${to.slice(0, 6)}…${to.slice(-4)}` : "—",
+                time: "On-chain",
+                txHash: log.transactionHash ?? "",
+              };
+            });
+          setActivity(items);
+          setActivityLoading(false);
+        })
+        .catch(() => setActivityLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [publicClient, contractAddress, id, tokenId]);
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -211,9 +224,7 @@ export default function NFTDetailPage() {
     ? Number(collectionInfo.maxSupply).toLocaleString()
     : "—";
   const owner = ownerOf as string | undefined;
-  const shortOwner = owner
-    ? `${owner.slice(0, 6)}…${owner.slice(-4)}`
-    : null;
+  const shortOwner = owner ? `${owner.slice(0, 6)}…${owner.slice(-4)}` : null;
   const isOwner =
     connectedAddress && owner
       ? owner.toLowerCase() === connectedAddress.toLowerCase()
@@ -250,9 +261,24 @@ export default function NFTDetailPage() {
     return (
       <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
         <div className="flex items-center gap-3 text-zinc-500">
-          <svg className="animate-spin w-5 h-5 text-[#077345]" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          <svg
+            className="animate-spin w-5 h-5 text-[#077345]"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            />
           </svg>
           <span className="text-sm">Loading collection…</span>
         </div>
@@ -265,12 +291,12 @@ export default function NFTDetailPage() {
       <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-zinc-500 text-sm">Collection not found.</p>
-          <a
+          <Link
             href="/collections"
             className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
           >
             Back to Collections
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -286,17 +312,17 @@ export default function NFTDetailPage() {
 
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-xs text-zinc-600 mb-8">
-          <a href="/collections" className="hover:text-zinc-400 transition">
+          <Link href="/collections" className="hover:text-zinc-400 transition">
             Collections
-          </a>
+          </Link>
           <span>/</span>
-          
-          <a
+
+          <Link
             href={`/collections/${collectionInfo.slug}`}
             className="hover:text-zinc-400 transition"
           >
             {collectionInfo.name}
-          </a>
+          </Link>
           <span>/</span>
           <span className="text-zinc-400">#{id}</span>
         </div>
@@ -315,7 +341,14 @@ export default function NFTDetailPage() {
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#077345" strokeWidth="1">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#077345"
+                    strokeWidth="1"
+                  >
                     <rect x="3" y="3" width="18" height="18" rx="3" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <path d="M21 15l-5-5L5 21" />
@@ -330,7 +363,12 @@ export default function NFTDetailPage() {
                     rel="noopener noreferrer"
                     className="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center hover:bg-black/80 transition"
                   >
-                    <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 12 12"
+                      fill="currentColor"
+                    >
                       <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
                     </svg>
                   </a>
@@ -339,7 +377,9 @@ export default function NFTDetailPage() {
             </div>
 
             <div className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] p-5">
-              <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4">Details</p>
+              <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4">
+                Details
+              </p>
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-zinc-500">Contract</span>
@@ -350,9 +390,14 @@ export default function NFTDetailPage() {
                       rel="noopener noreferrer"
                       className="text-[#077345] hover:text-emerald-400 transition font-mono text-xs"
                     >
-                      {contractAddress?.slice(0, 6)}…{contractAddress?.slice(-4)}
+                      {contractAddress?.slice(0, 6)}…
+                      {contractAddress?.slice(-4)}
                     </a>
-                    <button onClick={copyAddress} className="text-zinc-600 hover:text-zinc-300 transition" title="Copy address">
+                    <button
+                      onClick={copyAddress}
+                      className="text-zinc-600 hover:text-zinc-300 transition"
+                      title="Copy address"
+                    >
                       {copied ? "✓" : "⧉"}
                     </button>
                   </div>
@@ -362,10 +407,7 @@ export default function NFTDetailPage() {
                   ["Token Standard", "ERC-721"],
                   ["Network", "Ritual Testnet"],
                   ["Chain ID", "1979"],
-                  [
-                    "Total Minted",
-                    `${minted.toLocaleString()} / ${maxSupply}`,
-                  ],
+                  ["Total Minted", `${minted.toLocaleString()} / ${maxSupply}`],
                   ["Symbol", collectionInfo.symbol],
                 ].map(([label, value]) => (
                   <div
@@ -418,7 +460,12 @@ export default function NFTDetailPage() {
                 {ownerLoading ? (
                   <span className="inline-block w-24 h-4 bg-zinc-800 rounded animate-pulse mt-1" />
                 ) : owner ? (
-                  <a href={`${EXPLORER_URL}/address/${owner}`} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-zinc-300 hover:text-emerald-400 transition">
+                  <a
+                    href={`${EXPLORER_URL}/address/${owner}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-bold text-zinc-300 hover:text-emerald-400 transition"
+                  >
                     {isOwner ? "You" : shortOwner}
                   </a>
                 ) : (
@@ -488,56 +535,72 @@ export default function NFTDetailPage() {
                   <p className="text-zinc-600 text-xs">{label}</p>
                   <p className="font-black mt-1 text-white">{value}</p>
                 </div>
-              </div>
-              {activityLoading ? (
-                <div className="px-5 py-8 flex items-center justify-center gap-3 text-zinc-600">
-                  <svg className="animate-spin w-4 h-4 text-[#077345]" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  <span className="text-xs">Loading activity…</span>
-                </div>
-              ) : activity.length === 0 ? (
-                <div className="px-5 py-8 text-center text-zinc-600 text-xs">
-                  No activity found for this token.
-                </div>
-              ) : (
-                <div className="divide-y divide-[#077345]/10">
-                  {activity.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between px-5 py-3 text-sm hover:bg-white/[0.02] transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="inline-flex items-center rounded-full border border-emerald-700/30 bg-emerald-900/20 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
-                          {item.event}
-                        </span>
-                        <span className="text-zinc-500 text-xs">
-                          To{" "}
-                          <span className="font-mono text-zinc-300">
-                            {item.to}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        {item.txHash ? (
-                          <a
-                            href={`${EXPLORER_URL}/tx/${item.txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#077345] hover:text-emerald-400 text-xs transition"
-                          >
-                            View Tx ↗
-                          </a>
-                        ) : (
-                          <span className="text-zinc-600 text-xs">—</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
+
+            {activityLoading ? (
+              <div className="px-5 py-8 flex items-center justify-center gap-3 text-zinc-600">
+                <svg
+                  className="animate-spin w-4 h-4 text-[#077345]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  />
+                </svg>
+                <span className="text-xs">Loading activity…</span>
+              </div>
+            ) : activity.length === 0 ? (
+              <div className="px-5 py-8 text-center text-zinc-600 text-xs">
+                No activity found for this token.
+              </div>
+            ) : (
+              <div className="divide-y divide-[#077345]/10">
+                {activity.map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-5 py-3 text-sm hover:bg-white/[0.02] transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center rounded-full border border-emerald-700/30 bg-emerald-900/20 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+                        {item.event}
+                      </span>
+                      <span className="text-zinc-500 text-xs">
+                        To{" "}
+                        <span className="font-mono text-zinc-300">
+                          {item.to}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      {item.txHash ? (
+                        <a
+                          href={`${EXPLORER_URL}/tx/${item.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#077345] hover:text-emerald-400 text-xs transition"
+                        >
+                          View Tx ↗
+                        </a>
+                      ) : (
+                        <span className="text-zinc-600 text-xs">—</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Footer explorer link */}
             <a
@@ -547,7 +610,12 @@ export default function NFTDetailPage() {
               className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/5 hover:bg-white/5 transition px-4 py-3 text-xs font-bold text-zinc-600 hover:text-zinc-400"
             >
               View collection on Ritual Explorer
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 12 12"
+                fill="currentColor"
+              >
                 <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
               </svg>
             </a>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import {
   useAccount,
@@ -23,12 +23,22 @@ import {
 } from "@/lib/blockchain/abi";
 import { useSearchParams } from "next/navigation";
 import { formatEther } from "viem";
+import {
+  fetchMarketplaceListings,
+  type MarketplaceListing,
+} from "@/lib/blockchain/listings";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
 const filters = ["All", "Cheapest", "Most Recent"];
 
-type BuyState = "idle" | "switching" | "pending" | "confirming" | "success" | "error";
+type BuyState =
+  | "idle"
+  | "switching"
+  | "pending"
+  | "confirming"
+  | "success"
+  | "error";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,16 +58,14 @@ function useTokenImage(
   tokenId: bigint,
   fallbackImage: string
 ) {
-  const [image, setImage] = useState<string>(resolveIpfs(fallbackImage));
-  const publicClient = usePublicClient();
+  const cacheKey = `${nftContract}-${tokenId.toString()}`;
+  const [image, setImage] = useState<string>(
+    () => metaCache.get(cacheKey) ?? resolveIpfs(fallbackImage)
+  );
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
 
   useEffect(() => {
-    const key = `${nftContract}-${tokenId.toString()}`;
-    if (metaCache.has(key)) {
-      setImage(metaCache.get(key)!);
-      return;
-    }
-
+    if (metaCache.has(cacheKey)) return;
     if (!publicClient) return;
 
     publicClient
@@ -74,29 +82,21 @@ function useTokenImage(
         const json = await res.json();
         const img = resolveIpfs(json.image ?? "");
         if (img) {
-          metaCache.set(key, img);
+          metaCache.set(cacheKey, img);
           setImage(img);
         }
       })
       .catch(() => {
         // fallback image na lang
       });
-  }, [nftContract, tokenId, publicClient]);
+  }, [cacheKey, nftContract, tokenId, publicClient]);
 
   return image;
 }
 
 // ─── NFT Card ─────────────────────────────────────────────────────────────────
 
-type Listing = {
-  listingId: bigint;
-  seller: `0x${string}`;
-  nftContract: `0x${string}`;
-  tokenId: bigint;
-  price: bigint;
-  active: boolean;
-  createdAt: bigint;
-};
+type Listing = MarketplaceListing;
 
 type CollectionInfo = {
   contractAddress: `0x${string}`;
@@ -157,7 +157,14 @@ function NFTCard({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#077345" strokeWidth="1">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#077345"
+                strokeWidth="1"
+              >
                 <rect x="3" y="3" width="18" height="18" rx="3" />
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <path d="M21 15l-5-5L5 21" />
@@ -230,9 +237,24 @@ function NFTCard({
             }`}
           >
             {isBuying && (
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              <svg
+                className="animate-spin w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                />
               </svg>
             )}
             {!isConnected
@@ -306,28 +328,50 @@ function MarketplacePage() {
   const [buyState, setBuyState] = useState<BuyState>("idle");
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
+  const [listingsError, setListingsError] = useState<Error | null>(null);
 
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q")?.toLowerCase() ?? "";
 
   const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
 
-  const {
-    data: listings,
-    isLoading,
-    isRefetching,
-    error: listingsError,
-    refetch,
-  } = useReadContract({
-    address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
-    abi: VASTMINT_MARKETPLACE_ABI,
-    functionName: "getActiveListings",
-    chainId: RITUAL_CHAIN_ID,
-    query: {
-      refetchInterval: 10_000,
-      refetchOnWindowFocus: true,
-    },
-  });
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
+
+  const refetch = useCallback(async () => {
+    if (!publicClient) return;
+    setIsRefetching(true);
+    try {
+      const nextListings = await fetchMarketplaceListings(publicClient);
+      setListings(nextListings);
+      setListingsError(null);
+    } catch (err) {
+      console.error(err);
+      setListingsError(
+        err instanceof Error
+          ? err
+          : new Error("Unable to load marketplace listings")
+      );
+    } finally {
+      setIsLoading(false);
+      setIsRefetching(false);
+    }
+  }, [publicClient]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => void refetch(), 0);
+    const interval = window.setInterval(() => void refetch(), 10_000);
+    const onFocus = () => void refetch();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [refetch]);
 
   // Fetch all collections para sa fallback images
   const { data: allCollections } = useReadContract({
@@ -349,7 +393,8 @@ function MarketplacePage() {
 
   useEffect(() => {
     if (txConfirmed && buyState === "confirming") {
-      void refetch();
+      const timeout = window.setTimeout(() => void refetch(), 0);
+      return () => window.clearTimeout(timeout);
     }
   }, [txConfirmed, buyState, refetch]);
 
@@ -451,7 +496,7 @@ function MarketplacePage() {
           {[
             {
               label: "Active Listings",
-              value: listings ? listings.length.toString() : "—",
+              value: listings.length.toString(),
             },
             { label: "Platform Fee", value: "2%" },
             { label: "Creator Royalty", value: "5%" },
@@ -506,7 +551,7 @@ function MarketplacePage() {
               {VASTMINT_MARKETPLACE_ADDRESS}.
             </p>
             <p className="text-red-300/70 text-xs mt-1">
-              {listingsError.shortMessage ?? listingsError.message}
+              {listingsError.message}
             </p>
           </div>
         )}
@@ -580,9 +625,7 @@ function MarketplacePage() {
                 key={listing.listingId.toString()}
                 listing={listing}
                 collections={collections}
-                isMine={
-                  address?.toLowerCase() === listing.seller.toLowerCase()
-                }
+                isMine={address?.toLowerCase() === listing.seller.toLowerCase()}
                 isConnected={isConnected}
                 buyingId={buyingId}
                 displayBuyState={displayBuyState}

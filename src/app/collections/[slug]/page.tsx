@@ -116,6 +116,14 @@ export default function CollectionPage() {
 
   const collection = data as Collection | undefined;
 
+  const { data: totalSupply } = useReadContract({
+    address: collection?.contractAddress,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "totalSupply",
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!collection?.contractAddress },
+  });
+
   // Fetch listings for this collection
   const { data: listings, refetch: refetchListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
@@ -134,9 +142,9 @@ export default function CollectionPage() {
   const imageUrl = collection ? resolveImage(collection.image) : null;
   const isFree = collection?.mintPrice === BigInt(0);
 
-  const activeListings = (
-    (listings as Listing[] | undefined) ?? []
-  ).filter((l) => l.active);
+  const activeListings = ((listings as Listing[] | undefined) ?? []).filter(
+    (l) => l.active
+  );
   const floorPrice =
     activeListings.length > 0
       ? Math.min(...activeListings.map((l) => Number(l.price) / 1e18))
@@ -292,9 +300,7 @@ export default function CollectionPage() {
             {
               label: "Floor Price",
               value:
-                floorPrice !== null
-                  ? `${floorPrice.toFixed(4)} RITUAL`
-                  : "—",
+                floorPrice !== null ? `${floorPrice.toFixed(4)} RITUAL` : "—",
             },
             { label: "Listed", value: activeListings.length.toString() },
             { label: "Minted", value: `${minted} / ${maxSupply}` },
