@@ -382,8 +382,10 @@ function MarketplacePage() {
     chainId: RITUAL_CHAIN_ID,
   });
 
-  const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
-
+  const HIDDEN_COLLECTIONS = [
+  "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
+].map(a => a.toLowerCase());
+const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && buyState === "confirming" },
@@ -437,6 +439,7 @@ function MarketplacePage() {
   const sortedListings = listings
     ? [...listings]
         .filter((l) => {
+  if (HIDDEN_COLLECTIONS.includes(l.nftContract.toLowerCase())) return false;
   if (!searchQuery) return true;
   const collection = collections.find(
     (c) => c.contractAddress.toLowerCase() === l.nftContract.toLowerCase()
