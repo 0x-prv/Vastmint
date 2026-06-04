@@ -1,4 +1,5 @@
-﻿import { defineChain } from "viem";
+// src/lib/blockchain/chain.ts
+import { defineChain } from "viem";
 
 export const ritualTestnet = defineChain({
   id: 1979,

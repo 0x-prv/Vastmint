@@ -1,6 +1,7 @@
 "use client";
 
-import { getLogsInSafeChunks } from "@/lib/blockchain/listings";
+import { getLogsInSafeChunks } from "@/lib/blockchain/logs";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -77,7 +78,6 @@ interface ActivityItem {
 export default function NFTDetailPage() {
   const { contractAddress, id } = useParams<{ contractAddress: string; id: string }>();
 
-  // #23 fix — invalid token ID shows error instead of silently becoming 0
   const tokenId = (() => {
     try {
       const parsed = BigInt(id ?? "");
@@ -89,7 +89,6 @@ export default function NFTDetailPage() {
   })();
 
   const { address: connectedAddress } = useAccount();
-  // #14 fix — explicitly scoped to Ritual chain
   const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -102,8 +101,8 @@ export default function NFTDetailPage() {
   const [metaLoading, setMetaLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
- const [buyState, setBuyState] = useState<
-  "idle" | "switching" | "pending" | "confirming" | "success" | "error"
+  const [buyState, setBuyState] = useState<
+    "idle" | "switching" | "pending" | "confirming" | "success" | "error"
   >("idle");
   const [buyTxHash, setBuyTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [buyError, setBuyError] = useState<string | null>(null);
@@ -113,9 +112,10 @@ export default function NFTDetailPage() {
     query: { enabled: !!buyTxHash && buyState === "confirming" },
   });
 
+  // Fix 1a — queueMicrotask avoids synchronous setState inside effect body
   useEffect(() => {
     if (buyConfirmed && buyState === "confirming") {
-      setBuyState("success");
+      queueMicrotask(() => setBuyState("success"));
     }
   }, [buyConfirmed, buyState]);
 
@@ -198,20 +198,28 @@ export default function NFTDetailPage() {
     (l) => l.active && l.tokenId === (tokenId ?? 0n)
   );
 
+  // Fix 1b — removed synchronous setMetaLoading(true) from effect body,
+  // metaLoading starts as true and is only set false after fetch completes.
+  // Cancellation flag prevents stale state updates.
   useEffect(() => {
     if (!tokenURIData) return;
-    setMetaLoading(true);
+    let cancelled = false;
     fetchMetadata(tokenURIData as string).then(({ name, description, image }) => {
+      if (cancelled) return;
       setTokenName(name);
       setTokenDescription(description);
       setTokenImage(image);
       setMetaLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [tokenURIData]);
 
+  // Fix 1c — removed synchronous setActivityLoading(true) from effect body.
+  // activityLoading starts as true so the spinner shows immediately.
   useEffect(() => {
     if (!publicClient || !contractAddress || !id || tokenId === null) return;
-    setActivityLoading(true);
 
     getLogsInSafeChunks(publicClient, {
       address: contractAddress as `0x${string}`,
@@ -220,12 +228,12 @@ export default function NFTDetailPage() {
       ),
       args: { tokenId },
     })
-      .then((logs: { args: { from: unknown; to: unknown; tokenId: unknown }; transactionHash?: string }[]) => {
+      .then((logs) => {
         const items: ActivityItem[] = logs
           .slice()
           .reverse()
           .slice(0, 10)
-          .map((log: { args: { from: unknown; to: unknown }; transactionHash?: string }) => {
+          .map((log) => {
             const from = log.args.from as string;
             const to = log.args.to as string;
             const isMint = from === "0x0000000000000000000000000000000000000000";
@@ -272,18 +280,19 @@ export default function NFTDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // #23 — Invalid token ID guard
+  // Invalid token ID guard
   if (tokenId === null) {
     return (
       <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-zinc-500 text-sm">Invalid token ID.</p>
-          <a
+          {/* Fix 2a — Link replaces <a> for internal navigation */}
+          <Link
             href="/collections"
             className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
           >
             Back to Collections
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -308,12 +317,13 @@ export default function NFTDetailPage() {
       <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-zinc-500 text-sm">Collection not found.</p>
-          <a
+          {/* Fix 2b — Link replaces <a> for internal navigation */}
+          <Link
             href="/collections"
             className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
           >
             Back to Collections
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -327,11 +337,14 @@ export default function NFTDetailPage() {
 
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-xs text-zinc-600 mb-8">
-          <a href="/collections" className="hover:text-zinc-400 transition">Collections</a>
+          {/* Fix 2c — Link replaces <a> for internal navigation */}
+          <Link href="/collections" className="hover:text-zinc-400 transition">
+            Collections
+          </Link>
           <span>/</span>
-          <a href={`/collections/${collectionInfo.slug}`} className="hover:text-zinc-400 transition">
+          <Link href={`/collections/${collectionInfo.slug}`} className="hover:text-zinc-400 transition">
             {collectionInfo.name}
-          </a>
+          </Link>
           <span>/</span>
           <span className="text-zinc-400">#{id}</span>
         </div>
@@ -518,12 +531,12 @@ export default function NFTDetailPage() {
                 )}
 
                 {!activeListing && (
-                  <a
+                  <Link
                     href={`/collections/${collectionInfo.slug}/mint`}
                     className="w-full flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-4 text-sm font-bold text-white"
                   >
                     Mint from Collection
-                  </a>
+                  </Link>
                 )}
 
                 <a
@@ -604,7 +617,7 @@ export default function NFTDetailPage() {
               )}
             </div>
 
-          <a
+            <a
               href={`${EXPLORER_URL}/token/${contractAddress}`}
               target="_blank"
               rel="noopener noreferrer"

@@ -1,49 +1,15 @@
 "use client";
 
 import "@rainbow-me/rainbowkit/styles.css";
-
 import {
   RainbowKitProvider,
   getDefaultConfig,
   darkTheme,
 } from "@rainbow-me/rainbowkit";
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
-import { defineChain } from "viem";
 import { useState } from "react";
-
-const ritualTestnet = defineChain({
-  id: 1979,
-  name: "Ritual Testnet",
-  nativeCurrency: {
-    decimals: 18,
-    name: "Ritual",
-    symbol: "RITUAL",
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://rpc.ritualfoundation.org"],
-    },
-    public: {
-      http: ["https://rpc.ritualfoundation.org"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Ritual Explorer",
-      url: "https://explorer.ritualfoundation.org",
-    },
-  },
-  testnet: true,
-});
-
-const config = getDefaultConfig({
-  appName: "VastMint",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
-  chains: [ritualTestnet],
-  ssr: true,
-});
+import { ritualTestnet } from "@/lib/blockchain/chains"; // ← import from chain.ts
 
 export default function Web3Provider({
   children,
@@ -51,6 +17,16 @@ export default function Web3Provider({
   children: React.ReactNode;
 }) {
   const [queryClient] = useState(() => new QueryClient());
+
+  // ✅ config nasa loob ng component — hindi na mag-run sa build time
+  const [config] = useState(() =>
+    getDefaultConfig({
+      appName: "VastMint",
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
+      chains: [ritualTestnet],
+      ssr: true,
+    })
+  );
 
   return (
     <WagmiProvider config={config}>
