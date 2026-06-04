@@ -61,8 +61,16 @@ export default function HomePage() {
     chainId: RITUAL_CHAIN_ID,
   });
 
-  const allCollections = [...((collections as Collection[] | undefined) ?? [])];
-  const featuredListings = ((activeListings as Listing[] | undefined) ?? []).slice(0, 4);
+  const HIDDEN_COLLECTIONS = [
+  "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
+].map(a => a.toLowerCase());
+
+const allCollections = [...((collections as Collection[] | undefined) ?? [])].filter(
+  col => !HIDDEN_COLLECTIONS.includes(col.contractAddress.toLowerCase())
+);
+  const featuredListings = ((activeListings as Listing[] | undefined) ?? [])
+  .filter(l => !HIDDEN_COLLECTIONS.includes(l.nftContract.toLowerCase()))
+  .slice(0, 4);
 
   // Helper: get collection info for a listing
   function getCollectionForListing(listing: Listing): Collection | undefined {
