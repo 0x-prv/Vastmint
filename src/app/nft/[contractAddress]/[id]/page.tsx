@@ -283,13 +283,13 @@ export default function NFTDetailPage() {
   // Invalid token ID guard
   if (tokenId === null) {
     return (
-      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
+      <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-zinc-500 text-sm">Invalid token ID.</p>
+          <p className="text-[#4a6741] text-sm">Invalid token ID.</p>
           {/* Fix 2a — Link replaces <a> for internal navigation */}
           <Link
             href="/collections"
-            className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
+            className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]"
           >
             Back to Collections
           </Link>
@@ -300,9 +300,9 @@ export default function NFTDetailPage() {
 
   if (!allCollections) {
     return (
-      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
-        <div className="flex items-center gap-3 text-zinc-500">
-          <svg className="animate-spin w-5 h-5 text-[#077345]" viewBox="0 0 24 24" fill="none">
+      <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-[#4a6741]">
+          <svg className="animate-spin w-5 h-5 text-[#1a4a2e]" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
@@ -314,13 +314,13 @@ export default function NFTDetailPage() {
 
   if (!collectionInfo) {
     return (
-      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
+      <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-zinc-500 text-sm">Collection not found.</p>
+          <p className="text-[#4a6741] text-sm">Collection not found.</p>
           {/* Fix 2b — Link replaces <a> for internal navigation */}
           <Link
             href="/collections"
-            className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
+            className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]"
           >
             Back to Collections
           </Link>
@@ -330,35 +330,35 @@ export default function NFTDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
+    <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-[#077345]/6 rounded-full blur-[160px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-[#1a4a2e]/5 rounded-full blur-[160px]" />
       </div>
 
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 text-xs text-zinc-600 mb-8">
+        <div className="flex items-center gap-2 text-xs text-[#7a9e7a] mb-8">
           {/* Fix 2c — Link replaces <a> for internal navigation */}
-          <Link href="/collections" className="hover:text-zinc-400 transition">
+          <Link href="/collections" className="hover:text-[#4a6741] transition">
             Collections
           </Link>
           <span>/</span>
-          <Link href={`/collections/${collectionInfo.slug}`} className="hover:text-zinc-400 transition">
+          <Link href={`/collections/${collectionInfo.slug}`} className="hover:text-[#4a6741] transition">
             {collectionInfo.name}
           </Link>
           <span>/</span>
-          <span className="text-zinc-400">#{id}</span>
+          <span className="text-[#4a6741]">#{id}</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           <div className="space-y-4">
-            <div className="rounded-2xl overflow-hidden border border-[#077345]/20 bg-[#0b1f17] aspect-square relative group flex items-center justify-center">
+            <div className="rounded-2xl overflow-hidden border border-[#1a4a2e]/20 bg-[#ede8df] aspect-square relative group flex items-center justify-center">
               {metaLoading ? (
-                <div className="w-full h-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] animate-pulse" />
+                <div className="w-full h-full bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] animate-pulse" />
               ) : displayImage ? (
                 <img src={displayImage} alt={displayName} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#077345" strokeWidth="1">
+                <div className="w-full h-full bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1a4a2e" strokeWidth="1">
                     <rect x="3" y="3" width="18" height="18" rx="3" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <path d="M21 15l-5-5L5 21" />
@@ -371,7 +371,7 @@ export default function NFTDetailPage() {
                     href={displayImage}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center hover:bg-black/80 transition"
+                    className="w-9 h-9 rounded-xl bg-[#e0dbd0]/80 border border-[#1a4a2e]/20 flex items-center justify-center hover:bg-[#e0dbd0]/80 transition"
                   >
                     <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
                       <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
@@ -381,21 +381,21 @@ export default function NFTDetailPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] p-5">
-              <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-4">Details</p>
+            <div className="rounded-2xl border border-[#1a4a2e]/15 bg-[#ede8df] p-5">
+              <p className="text-xs font-bold text-[#7a9e7a] uppercase tracking-widest mb-4">Details</p>
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-zinc-500">Contract</span>
+                  <span className="text-[#4a6741]">Contract</span>
                   <div className="flex items-center gap-2">
                     <a
                       href={`${EXPLORER_URL}/address/${contractAddress}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#077345] hover:text-emerald-400 transition font-mono text-xs"
+                      className="text-[#1a4a2e] hover:text-[#1a4a2e] transition font-mono text-xs"
                     >
                       {contractAddress?.slice(0, 6)}…{contractAddress?.slice(-4)}
                     </a>
-                    <button onClick={copyAddress} className="text-zinc-600 hover:text-zinc-300 transition" title="Copy address">
+                    <button onClick={copyAddress} className="text-[#7a9e7a] hover:text-[#1a2e1a] transition" title="Copy address">
                       {copied ? "✓" : "⧉"}
                     </button>
                   </div>
@@ -409,8 +409,8 @@ export default function NFTDetailPage() {
                   ["Symbol", collectionInfo.symbol],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between items-center text-sm">
-                    <span className="text-zinc-500">{label}</span>
-                    <span className="font-mono text-xs text-zinc-300">{value}</span>
+                    <span className="text-[#4a6741]">{label}</span>
+                    <span className="font-mono text-xs text-[#1a2e1a]">{value}</span>
                   </div>
                 ))}
               </div>
@@ -419,64 +419,64 @@ export default function NFTDetailPage() {
 
           <div className="space-y-6">
             <div>
-              <p className="text-[#077345] uppercase tracking-[0.2em] text-xs font-bold mb-2">
+              <p className="text-[#1a4a2e] uppercase tracking-[0.2em] text-xs font-bold mb-2">
                 {collectionInfo.name}
               </p>
               <h1 className="text-5xl sm:text-6xl font-black leading-none">
                 {metaLoading ? (
-                  <span className="inline-block w-48 h-12 bg-zinc-800 rounded animate-pulse" />
+                  <span className="inline-block w-48 h-12 bg-[#e0dbd0] rounded animate-pulse" />
                 ) : (
                   displayName
                 )}
               </h1>
               {displayDescription && (
-                <p className="text-zinc-500 mt-4 leading-relaxed text-sm">{displayDescription}</p>
+                <p className="text-[#4a6741] mt-4 leading-relaxed text-sm">{displayDescription}</p>
               )}
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#077345]/20 border border-[#077345]/30 flex items-center justify-center flex-shrink-0">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-[#077345]">
+              <div className="w-8 h-8 rounded-full bg-[#1a4a2e]/20 border border-[#1a4a2e]/30 flex items-center justify-center flex-shrink-0">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-[#1a4a2e]">
                   <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 1a6 6 0 00-6 6h12a6 6 0 00-6-6z" />
                 </svg>
               </div>
               <div>
-                <p className="text-zinc-600 text-xs">Owned by</p>
+                <p className="text-[#7a9e7a] text-xs">Owned by</p>
                 {ownerLoading ? (
-                  <span className="inline-block w-24 h-4 bg-zinc-800 rounded animate-pulse mt-1" />
+                  <span className="inline-block w-24 h-4 bg-[#e0dbd0] rounded animate-pulse mt-1" />
                 ) : owner ? (
                   <a
                     href={`${EXPLORER_URL}/address/${owner}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-bold text-zinc-300 hover:text-emerald-400 transition"
+                    className="text-sm font-bold text-[#1a2e1a] hover:text-[#1a4a2e] transition"
                   >
                     {isOwner ? "You" : shortOwner}
                   </a>
                 ) : (
-                  <span className="text-sm font-bold text-zinc-500">—</span>
+                  <span className="text-sm font-bold text-[#4a6741]">—</span>
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-6 space-y-5">
+            <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-6 space-y-5">
               {activeListing ? (
                 <div>
-                  <p className="text-zinc-600 text-xs uppercase tracking-widest mb-1">Listed Price</p>
+                  <p className="text-[#7a9e7a] text-xs uppercase tracking-widest mb-1">Listed Price</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-emerald-400">
+                    <span className="text-4xl font-black text-[#1a4a2e]">
                       {(Number(activeListing.price) / 1e18).toFixed(4)}
                     </span>
-                    <span className="text-zinc-400 text-sm">RITUAL</span>
+                    <span className="text-[#4a6741] text-sm">RITUAL</span>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <p className="text-zinc-600 text-xs uppercase tracking-widest mb-1">Mint Price</p>
+                  <p className="text-[#7a9e7a] text-xs uppercase tracking-widest mb-1">Mint Price</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-emerald-400">{mintPrice}</span>
+                    <span className="text-4xl font-black text-[#1a4a2e]">{mintPrice}</span>
                     {mintPrice !== "Free" && (
-                      <span className="text-zinc-600 text-sm">RITUAL</span>
+                      <span className="text-[#7a9e7a] text-sm">RITUAL</span>
                     )}
                   </div>
                 </div>
@@ -495,8 +495,8 @@ export default function NFTDetailPage() {
                       disabled={buyState !== "idle" && buyState !== "error"}
                       className={`w-full flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-bold transition ${
                         buyState !== "idle" && buyState !== "error"
-                          ? "bg-[#077345]/60 text-white/70 cursor-not-allowed"
-                          : "bg-[#077345] hover:bg-[#066039] text-white"
+                          ? "bg-[#1a4a2e]/50 text-[#f5f0e8]/70 cursor-not-allowed"
+                          : "bg-[#1a4a2e] hover:bg-[#143d24] text-[#f5f0e8]"
                       }`}
                     >
                       {(buyState === "pending" || buyState === "confirming" || buyState === "switching") && (
@@ -517,23 +517,23 @@ export default function NFTDetailPage() {
                 )}
 
                 {activeListing && isOwner && (
-                  <div className="rounded-xl border border-emerald-700/20 bg-emerald-900/10 px-4 py-3">
-                    <p className="text-emerald-400 text-sm text-center">
+                  <div className="rounded-xl border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-4 py-3">
+                    <p className="text-[#1a4a2e] text-sm text-center">
                       You own this NFT — listed for sale
                     </p>
                   </div>
                 )}
 
                 {buyState === "success" && (
-                  <div className="rounded-xl border border-emerald-700/30 bg-emerald-900/20 px-4 py-3 text-center">
-                    <p className="text-emerald-400 font-bold">Purchase successful! 🎉</p>
+                  <div className="rounded-xl border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-4 py-3 text-center">
+                    <p className="text-[#1a4a2e] font-bold">Purchase successful! 🎉</p>
                   </div>
                 )}
 
                 {!activeListing && (
                   <Link
                     href={`/collections/${collectionInfo.slug}/mint`}
-                    className="w-full flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-4 text-sm font-bold text-white"
+                    className="w-full flex items-center justify-center rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-4 py-4 text-sm font-bold text-[#f5f0e8]"
                   >
                     Mint from Collection
                   </Link>
@@ -543,7 +543,7 @@ export default function NFTDetailPage() {
                   href={`${EXPLORER_URL}/token/${contractAddress}?a=${id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 hover:bg-white/5 transition px-4 py-4 text-sm font-bold text-zinc-400 hover:text-zinc-200"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#1a4a2e]/20 hover:bg-[#1a4a2e]/10 transition px-4 py-4 text-sm font-bold text-[#4a6741] hover:text-[#1a2e1a]"
                 >
                   View on Explorer
                 </a>
@@ -558,43 +558,43 @@ export default function NFTDetailPage() {
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="rounded-xl bg-[#0b1f17] border border-[#077345]/10 px-4 py-4 text-center"
+                  className="rounded-xl bg-[#ede8df] border border-[#1a4a2e]/10 px-4 py-4 text-center"
                 >
-                  <p className="text-zinc-600 text-xs">{label}</p>
-                  <p className="font-black mt-1 text-white">{value}</p>
+                  <p className="text-[#7a9e7a] text-xs">{label}</p>
+                  <p className="font-black mt-1 text-[#1a2e1a]">{value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[#077345]/15 bg-[#0b1f17] overflow-hidden">
-              <div className="px-5 py-4 border-b border-[#077345]/10">
-                <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Activity</p>
+            <div className="rounded-2xl border border-[#1a4a2e]/15 bg-[#ede8df] overflow-hidden">
+              <div className="px-5 py-4 border-b border-[#1a4a2e]/10">
+                <p className="text-xs font-bold text-[#7a9e7a] uppercase tracking-widest">Activity</p>
               </div>
               {activityLoading ? (
-                <div className="px-5 py-8 flex items-center justify-center gap-3 text-zinc-600">
-                  <svg className="animate-spin w-4 h-4 text-[#077345]" viewBox="0 0 24 24" fill="none">
+                <div className="px-5 py-8 flex items-center justify-center gap-3 text-[#7a9e7a]">
+                  <svg className="animate-spin w-4 h-4 text-[#1a4a2e]" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
                   <span className="text-xs">Loading activity…</span>
                 </div>
               ) : activity.length === 0 ? (
-                <div className="px-5 py-8 text-center text-zinc-600 text-xs">
+                <div className="px-5 py-8 text-center text-[#7a9e7a] text-xs">
                   No activity found for this token.
                 </div>
               ) : (
-                <div className="divide-y divide-[#077345]/10">
+                <div className="divide-y divide-[#1a4a2e]/10">
                   {activity.map((item, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between px-5 py-3 text-sm hover:bg-white/[0.02] transition"
+                      className="flex items-center justify-between px-5 py-3 text-sm hover:bg-[#1a4a2e]/5 transition"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="inline-flex items-center rounded-full border border-emerald-700/30 bg-emerald-900/20 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+                        <span className="inline-flex items-center rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-2.5 py-0.5 text-xs font-bold text-[#1a4a2e]">
                           {item.event}
                         </span>
-                        <span className="text-zinc-500 text-xs">
-                          To <span className="font-mono text-zinc-300">{item.to}</span>
+                        <span className="text-[#4a6741] text-xs">
+                          To <span className="font-mono text-[#1a2e1a]">{item.to}</span>
                         </span>
                       </div>
                       <div className="text-right">
@@ -603,12 +603,12 @@ export default function NFTDetailPage() {
                             href={`${EXPLORER_URL}/tx/${item.txHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#077345] hover:text-emerald-400 text-xs transition"
+                            className="text-[#1a4a2e] hover:text-[#1a4a2e] text-xs transition"
                           >
                             View Tx ↗
                           </a>
                         ) : (
-                          <span className="text-zinc-600 text-xs">—</span>
+                          <span className="text-[#7a9e7a] text-xs">—</span>
                         )}
                       </div>
                     </div>
@@ -621,7 +621,7 @@ export default function NFTDetailPage() {
               href={`${EXPLORER_URL}/token/${contractAddress}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/5 hover:bg-white/5 transition px-4 py-3 text-xs font-bold text-zinc-600 hover:text-zinc-400"
+              className="flex items-center justify-center gap-2 w-full rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-4 py-3 text-xs font-bold text-[#7a9e7a] hover:text-[#4a6741]"
             >
               View collection on Ritual Explorer
               <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">

@@ -230,10 +230,10 @@ const metadata = {
 
   if (collectionLoading) {
     return (
-      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
+      <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[#077345] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500 text-sm">Loading collection...</p>
+          <div className="w-8 h-8 border-2 border-[#1a4a2e] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#4a6741] text-sm">Loading collection...</p>
         </div>
       </main>
     );
@@ -241,12 +241,12 @@ const metadata = {
 
   if (!collection || !contractAddress) {
     return (
-      <main className="min-h-screen bg-[#05150f] text-white flex items-center justify-center">
+      <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-zinc-500 text-sm">Collection not found.</p>
+          <p className="text-[#4a6741] text-sm">Collection not found.</p>
           <Link
             href="/collections"
-            className="mt-4 inline-flex rounded-xl bg-[#077345] px-5 py-3 text-sm font-bold text-white"
+            className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]"
           >
             Back to Collections
           </Link>
@@ -256,39 +256,39 @@ const metadata = {
   }
 
   return (
-    <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
+    <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#077345]/8 rounded-full blur-[140px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#1a4a2e]/5 rounded-full blur-[140px]" />
       </div>
 
       <div className="relative max-w-5xl mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-zinc-600 mb-8">
+        <div className="flex items-center gap-2 text-sm text-[#7a9e7a] mb-8">
           <Link
             href="/collections"
-            className="hover:text-emerald-400 transition"
+            className="hover:text-[#1a4a2e] transition"
           >
             Collections
           </Link>
           <span>/</span>
           <Link
             href={`/collections/${slug}`}
-            className="hover:text-emerald-400 transition"
+            className="hover:text-[#1a4a2e] transition"
           >
             {collection.name}
           </Link>
           <span>/</span>
-          <span className="text-zinc-400">Mint</span>
+          <span className="text-[#4a6741]">Mint</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           {/* LEFT — Image + Details */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
-              <div className="aspect-square w-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
+            <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] overflow-hidden">
+              <div className="aspect-square w-full bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center relative">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div
-                    className="w-48 h-48 rounded-full border border-[#077345]/10 animate-ping"
+                    className="w-48 h-48 rounded-full border border-[#1a4a2e]/10 animate-ping"
                     style={{ animationDuration: "4s" }}
                   />
                 </div>
@@ -301,33 +301,33 @@ const metadata = {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-[#077345]/20" />
+                      <div className="w-full h-full bg-[#1a4a2e]/20" />
                     )}
                   </div>
                   <div className="text-center">
-                    <p className="text-white text-sm font-bold">
+                    <p className="text-[#1a2e1a] text-sm font-bold">
                       {collection.name}
                     </p>
-                    <p className="text-zinc-600 text-xs mt-0.5 tracking-widest uppercase">
+                    <p className="text-[#7a9e7a] text-xs mt-0.5 tracking-widest uppercase">
                       {collection.symbol}
                     </p>
                   </div>
                 </div>
                 <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-3 py-1 text-xs font-bold text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-3 py-1 text-xs font-bold text-[#1a4a2e]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1a4a2e] animate-pulse" />
                     {isSoldOut ? "Sold Out" : "Live Mint"}
                   </span>
                 </div>
               </div>
-              <div className="p-5 space-y-3 border-t border-white/5">
+              <div className="p-5 space-y-3 border-t border-[#1a4a2e]/15">
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Contract</span>
+                  <span className="text-[#7a9e7a] text-xs">Contract</span>
                   <a
                     href={`${EXPLORER_URL}/address/${contractAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-emerald-400 font-mono text-xs hover:text-emerald-300 transition flex items-center gap-1"
+                    className="text-[#1a4a2e] font-mono text-xs hover:text-[#143d24] transition flex items-center gap-1"
                   >
                     {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
                     <svg
@@ -341,30 +341,30 @@ const metadata = {
                   </a>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Creator</span>
-                  <span className="text-zinc-400 text-xs font-mono">
+                  <span className="text-[#7a9e7a] text-xs">Creator</span>
+                  <span className="text-[#4a6741] text-xs font-mono">
                     {collection.creator.slice(0, 6)}...
                     {collection.creator.slice(-4)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Network</span>
+                  <span className="text-[#7a9e7a] text-xs">Network</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-emerald-400 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1a4a2e] animate-pulse" />
+                    <span className="text-[#1a4a2e] text-xs">
                       Ritual Testnet
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Standard</span>
-                  <span className="text-zinc-400 text-xs font-mono">
+                  <span className="text-[#7a9e7a] text-xs">Standard</span>
+                  <span className="text-[#4a6741] text-xs font-mono">
                     ERC-721
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-600 text-xs">Chain ID</span>
-                  <span className="text-zinc-400 text-xs font-mono">1979</span>
+                  <span className="text-[#7a9e7a] text-xs">Chain ID</span>
+                  <span className="text-[#4a6741] text-xs font-mono">1979</span>
                 </div>
               </div>
             </div>
@@ -372,15 +372,15 @@ const metadata = {
 
           {/* RIGHT — Mint UI */}
           <div className="lg:col-span-3 space-y-4">
-            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-7">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/30 bg-emerald-900/30 px-3 py-1 text-xs font-bold text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-7">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-3 py-1 text-xs font-bold text-[#1a4a2e]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1a4a2e] animate-pulse" />
                 {collection.symbol}
               </span>
               <h1 className="text-3xl font-black mt-4 leading-tight">
                 {collection.name}
               </h1>
-              <p className="text-zinc-500 text-sm mt-3 leading-relaxed">
+              <p className="text-[#4a6741] text-sm mt-3 leading-relaxed">
                 {collection.description}
               </p>
 
@@ -392,12 +392,12 @@ const metadata = {
                 ].map(({ label, value }) => (
                   <div
                     key={label}
-                    className="rounded-xl bg-black/30 border border-white/5 p-4 text-center"
+                    className="rounded-xl bg-[#e0dbd0]/30 border border-[#1a4a2e]/15 p-4 text-center"
                   >
-                    <p className="text-zinc-600 text-xs">{label}</p>
+                    <p className="text-[#7a9e7a] text-xs">{label}</p>
                     <p
                       className={`font-black text-lg mt-1 ${
-                        value === "Free" ? "text-emerald-400" : "text-white"
+                        value === "Free" ? "text-[#1a4a2e]" : "text-[#1a2e1a]"
                       }`}
                     >
                       {value}
@@ -408,28 +408,28 @@ const metadata = {
 
               <div className="mt-5">
                 <div className="flex justify-between text-xs mb-2">
-                  <span className="text-zinc-600">Minting Progress</span>
-                  <span className="text-zinc-400 font-bold">
+                  <span className="text-[#7a9e7a]">Minting Progress</span>
+                  <span className="text-[#4a6741] font-bold">
                     {minted} / {maxSupply} · {progress}%
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-black/50 overflow-hidden">
+                <div className="h-2 rounded-full bg-[#e0dbd0]/50 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#077345] to-emerald-400 rounded-full transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-[#1a4a2e] to-[#4a6741] rounded-full transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-7">
+            <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-7">
               {displayMintState === "success" && txHash ? (
                 <div className="flex flex-col items-center text-center py-2">
-                  <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
+                  <div className="w-16 h-16 rounded-full bg-[#1a4a2e]/10 border border-[#1a4a2e]/30 flex items-center justify-center mb-5">
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                       <path
                         d="M6 14L11 19L22 8"
-                        stroke="#4ade80"
+                        stroke="#1a4a2e"
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -437,15 +437,15 @@ const metadata = {
                     </svg>
                   </div>
                   <h2 className="text-2xl font-black">Mint Successful!</h2>
-                  <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">
+                  <p className="text-[#4a6741] text-sm mt-2 max-w-xs leading-relaxed">
                     Your NFT has been minted and will appear in your dashboard
                     shortly.
                   </p>
-                  <div className="mt-6 w-full rounded-xl border border-white/5 bg-black/30 p-4 text-left">
-                    <p className="text-zinc-600 text-xs mb-2">
+                  <div className="mt-6 w-full rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/30 p-4 text-left">
+                    <p className="text-[#7a9e7a] text-xs mb-2">
                       Transaction Hash
                     </p>
-                    <p className="font-mono text-emerald-400 text-xs break-all leading-relaxed">
+                    <p className="font-mono text-[#1a4a2e] text-xs break-all leading-relaxed">
                       {txHash}
                     </p>
                   </div>
@@ -454,37 +454,37 @@ const metadata = {
                       href={`${EXPLORER_URL}/tx/${txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#077345]/30 px-4 py-3 text-sm font-bold text-emerald-400 hover:bg-[#077345]/10 transition"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#1a4a2e]/30 px-4 py-3 text-sm font-bold text-[#1a4a2e] hover:bg-[#1a4a2e]/10 transition"
                     >
                       View on Explorer
                     </a>
                     <Link
                       href="/dashboard"
-                      className="flex-1 flex items-center justify-center rounded-xl bg-[#077345] hover:bg-[#066039] transition px-4 py-3 text-sm font-bold text-white"
+                      className="flex-1 flex items-center justify-center rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-4 py-3 text-sm font-bold text-[#f5f0e8]"
                     >
                       View My NFTs
                     </Link>
                   </div>
                   <button
                     onClick={reset}
-                    className="mt-4 text-zinc-600 text-sm hover:text-zinc-400 transition"
+                    className="mt-4 text-[#7a9e7a] text-sm hover:text-[#4a6741] transition"
                   >
                     Mint Another
                   </button>
                 </div>
               ) : (
                 <>
-                  <p className="text-[#077345] text-xs font-bold uppercase tracking-[0.18em] mb-5">
+                  <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em] mb-5">
                     Mint Your NFT
                   </p>
 
                   {isConnected ? (
-                    <div className="rounded-xl border border-white/5 bg-black/25 px-4 py-3 mb-5 flex items-center justify-between">
+                    <div className="rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/25 px-4 py-3 mb-5 flex items-center justify-between">
                       <div>
-                        <p className="text-zinc-600 text-xs">
+                        <p className="text-[#7a9e7a] text-xs">
                           Connected Wallet
                         </p>
-                        <p className="font-mono text-sm text-zinc-200 mt-0.5">
+                        <p className="font-mono text-sm text-[#1a2e1a] mt-0.5">
                           {address?.slice(0, 6)}...{address?.slice(-4)}
                         </p>
                       </div>
@@ -494,44 +494,44 @@ const metadata = {
                           Wrong Network
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="flex items-center gap-1.5 text-xs text-[#1a4a2e]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#1a4a2e]" />
                           Ritual Testnet
                         </span>
                       )}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3 mb-5">
-                      <p className="text-zinc-600 text-sm">
+                    <div className="rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/70 px-4 py-3 mb-5">
+                      <p className="text-[#7a9e7a] text-sm">
                         Connect your wallet to mint
                       </p>
                     </div>
                   )}
 
-                  <div className="rounded-xl border border-white/5 bg-black/20 p-4 mb-5">
+                  <div className="rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/70 p-4 mb-5">
                     <div className="flex justify-between text-sm mb-3">
-                      <span className="text-zinc-500">Mint Price</span>
+                      <span className="text-[#4a6741]">Mint Price</span>
                       <span
                         className={`font-bold ${
-                          isFree ? "text-emerald-400" : "text-white"
+                          isFree ? "text-[#1a4a2e]" : "text-[#1a2e1a]"
                         }`}
                       >
                         {mintPriceLabel}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm mb-3">
-                      <span className="text-zinc-500">Platform Fee</span>
-                      <span className="text-zinc-400">None</span>
+                      <span className="text-[#4a6741]">Platform Fee</span>
+                      <span className="text-[#4a6741]">None</span>
                     </div>
                     <div className="flex justify-between text-sm mb-3">
-                      <span className="text-zinc-500">Gas Fee</span>
-                      <span className="text-zinc-400">Paid by wallet</span>
+                      <span className="text-[#4a6741]">Gas Fee</span>
+                      <span className="text-[#4a6741]">Paid by wallet</span>
                     </div>
-                    <div className="border-t border-white/5 mt-3 pt-3 flex justify-between text-sm">
-                      <span className="text-zinc-400 font-bold">Total</span>
+                    <div className="border-t border-[#1a4a2e]/15 mt-3 pt-3 flex justify-between text-sm">
+                      <span className="text-[#4a6741] font-bold">Total</span>
                       <span
                         className={`font-black ${
-                          isFree ? "text-emerald-400" : "text-white"
+                          isFree ? "text-[#1a4a2e]" : "text-[#1a2e1a]"
                         }`}
                       >
                         {isFree ? "Gas Only" : mintPriceLabel}
@@ -554,12 +554,12 @@ const metadata = {
                     }
                     className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
                       !isConnected || isSoldOut
-                        ? "bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5"
+                        ? "bg-[#e0dbd0] text-[#7a9e7a] cursor-not-allowed border border-[#1a4a2e]/15"
                         : isPending || mintPrice === undefined
-                        ? "bg-[#077345]/60 text-white/70 cursor-not-allowed"
+                        ? "bg-[#1a4a2e]/50 text-[#f5f0e8]/70 cursor-not-allowed"
                         : isWrongNetwork
-                        ? "bg-red-900/60 hover:bg-red-800/60 text-white border border-red-700/30"
-                        : "bg-[#077345] hover:bg-[#066039] text-white shadow-lg shadow-black/30"
+                        ? "bg-red-900/60 hover:bg-red-800/60 text-[#f5f0e8] border border-red-700/30"
+                        : "bg-[#1a4a2e] hover:bg-[#143d24] text-[#f5f0e8] shadow-lg shadow-[#1a4a2e]/10"
                     }`}
                   >
                     {isPending && (
@@ -598,7 +598,7 @@ const metadata = {
                       : "Mint NFT"}
                   </button>
 
-                  <p className="text-center text-zinc-700 text-xs mt-4">
+                  <p className="text-center text-[#7a9e7a] text-xs mt-4">
                     Minting on Ritual Testnet · Chain ID 1979
                   </p>
                 </>

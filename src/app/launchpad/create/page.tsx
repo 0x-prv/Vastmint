@@ -181,21 +181,21 @@ if (!metadataCid) throw new Error("Metadata CID missing");
   const canProceedStep1 = !!imageFile;
 
   return (
-    <main className="min-h-screen bg-[#05150f] px-5 pt-6 pb-24 text-white">
+    <main className="min-h-screen bg-[#f5f0e8] px-5 pt-6 pb-24 text-[#1a2e1a]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#077345]/8 rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#1a4a2e]/5 rounded-full blur-[120px]" />
       </div>
 
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
-          <p className="text-[#077345] text-xs font-bold uppercase tracking-[0.18em] mb-2">VastMint</p>
+          <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em] mb-2">VastMint</p>
           <h1 className="text-4xl font-black tracking-tight">Deploy Your Collection</h1>
-          <p className="mt-3 text-sm text-white/50">
+          <p className="mt-3 text-sm text-[#1a2e1a]/50">
             Launch your Ritual-native NFT collection in minutes.
           </p>
         </div>
 
-        <section className="rounded-3xl border border-[#077345]/20 bg-[#0b1f17] p-6 shadow-2xl shadow-black/30">
+        <section className="rounded-3xl border border-[#1a4a2e]/20 bg-[#ede8df] p-6 shadow-2xl shadow-[#1a4a2e]/10">
           {/* Step Tabs */}
           <div className="mb-6 grid grid-cols-4 gap-2">
             {steps.map((item, index) => (
@@ -204,13 +204,13 @@ if (!metadataCid) throw new Error("Metadata CID missing");
                 onClick={() => { if (index < displayStep) setStep(index); }}
                 className={`rounded-2xl border px-3 py-3 text-sm transition ${
                   displayStep === index
-                    ? "border-[#077345] bg-[#077345]/20 text-white"
+                    ? "border-[#1a4a2e] bg-[#1a4a2e]/20 text-[#1a2e1a]"
                     : index < displayStep
-                    ? "border-[#077345]/30 bg-[#077345]/10 text-emerald-400"
-                    : "border-white/10 bg-white/[0.03] text-white/40"
+                    ? "border-[#1a4a2e]/30 bg-[#1a4a2e]/10 text-[#1a4a2e]"
+                    : "border-[#1a4a2e]/20 bg-[#1a4a2e]/5 text-[#1a2e1a]/40"
                 }`}
               >
-                <span className="block text-xs text-white/40 mb-0.5">
+                <span className="block text-xs text-[#1a2e1a]/40 mb-0.5">
                   {index < displayStep ? "✓" : `Step ${index + 1}`}
                 </span>
                 {item}
@@ -222,63 +222,63 @@ if (!metadataCid) throw new Error("Metadata CID missing");
           {displayStep === 0 && (
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm text-white/70">Collection Name *</label>
+                <label className="mb-2 block text-sm text-[#1a2e1a]/70">Collection Name *</label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
+                  className="w-full rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
                   placeholder="Vast Genesis"
                 />
                 {name && (
-                  <p className="text-zinc-600 text-xs mt-1 font-mono">
-                    Slug: /collections/<span className="text-emerald-400">{slugify(name)}</span>/mint
+                  <p className="text-[#7a9e7a] text-xs mt-1 font-mono">
+                    Slug: /collections/<span className="text-[#1a4a2e]">{slugify(name)}</span>/mint
                   </p>
                 )}
               </div>
               <div>
-                <label className="mb-2 block text-sm text-white/70">Symbol *</label>
+                <label className="mb-2 block text-sm text-[#1a2e1a]/70">Symbol *</label>
                 <input
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                  className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
+                  className="w-full rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
                   placeholder="VAST"
                   maxLength={10}
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm text-white/70">Description *</label>
+                <label className="mb-2 block text-sm text-[#1a2e1a]/70">Description *</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
-                  className="w-full resize-none rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
+                  className="w-full resize-none rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
                   placeholder="Describe your collection and launch vision."
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm text-white/70">Max Supply *</label>
+                  <label className="mb-2 block text-sm text-[#1a2e1a]/70">Max Supply *</label>
                   <input
                     value={supply}
                     onChange={(e) => setSupply(e.target.value.replace(/\D/g, ""))}
-                    className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
+                    className="w-full rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
                     placeholder="1000"
                     type="number"
                     min="1"
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-white/70">Mint Price (RITUAL)</label>
+                  <label className="mb-2 block text-sm text-[#1a2e1a]/70">Mint Price (RITUAL)</label>
                   <input
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
+                    className="w-full rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
                     placeholder="0"
                     type="number"
                     min="0"
                     step="0.001"
                   />
-                  <p className="text-xs text-white/30 mt-1">Set 0 for free mint</p>
+                  <p className="text-xs text-[#1a2e1a]/30 mt-1">Set 0 for free mint</p>
                 </div>
               </div>
             </div>
@@ -296,32 +296,32 @@ if (!metadataCid) throw new Error("Metadata CID missing");
               />
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center cursor-pointer hover:border-[#077345]/50 hover:bg-[#077345]/5 transition"
+                className="rounded-2xl border border-dashed border-[#1a4a2e]/20 bg-[#1a4a2e]/5 p-10 text-center cursor-pointer hover:border-[#1a4a2e]/50 hover:bg-[#1a4a2e]/5 transition"
               >
                 {imagePreview ? (
                   <div className="flex flex-col items-center gap-3">
                     <img src={imagePreview} alt="Preview" className="w-32 h-32 rounded-2xl object-cover" />
-                    <p className="text-sm text-emerald-400">{imageFile?.name}</p>
-                    <p className="text-xs text-white/40">Click to change</p>
+                    <p className="text-sm text-[#1a4a2e]">{imageFile?.name}</p>
+                    <p className="text-xs text-[#1a2e1a]/40">Click to change</p>
                   </div>
                 ) : (
                   <>
-                    <div className="w-12 h-12 rounded-xl bg-[#077345]/20 flex items-center justify-center mx-auto mb-4">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#077345" strokeWidth="1.5">
+                    <div className="w-12 h-12 rounded-xl bg-[#1a4a2e]/20 flex items-center justify-center mx-auto mb-4">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a4a2e" strokeWidth="1.5">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                         <polyline points="17 8 12 3 7 8" />
                         <line x1="12" y1="3" x2="12" y2="15" />
                       </svg>
                     </div>
-                    <p className="text-sm text-white/70">Click to upload collection image</p>
-                    <p className="mt-1 text-xs text-white/30">PNG, JPG, GIF, WEBP — Max 10MB</p>
+                    <p className="text-sm text-[#1a2e1a]/70">Click to upload collection image</p>
+                    <p className="mt-1 text-xs text-[#1a2e1a]/30">PNG, JPG, GIF, WEBP — Max 10MB</p>
                   </>
                 )}
               </div>
               {imageCid && (
-                <div className="rounded-xl bg-black/20 border border-emerald-700/20 px-4 py-3">
-                  <p className="text-xs text-white/40">Already uploaded to IPFS ✓</p>
-                  <p className="text-xs text-emerald-400 font-mono mt-0.5 break-all">ipfs://{imageCid}</p>
+                <div className="rounded-xl bg-[#e0dbd0]/70 border border-[#1a4a2e]/30 px-4 py-3">
+                  <p className="text-xs text-[#1a2e1a]/40">Already uploaded to IPFS ✓</p>
+                  <p className="text-xs text-[#1a4a2e] font-mono mt-0.5 break-all">ipfs://{imageCid}</p>
                 </div>
               )}
             </div>
@@ -330,8 +330,8 @@ if (!metadataCid) throw new Error("Metadata CID missing");
           {/* Step 2 — Deploy */}
           {displayStep === 2 && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 space-y-3">
-                <p className="text-[#077345] text-xs font-bold uppercase tracking-widest mb-3">
+              <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#e0dbd0]/70 p-5 space-y-3">
+                <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-widest mb-3">
                   Collection Summary
                 </p>
                 {[
@@ -343,13 +343,13 @@ if (!metadataCid) throw new Error("Metadata CID missing");
                   { label: "Network", value: "Ritual Testnet" },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between text-sm">
-                    <span className="text-white/40">{label}</span>
-                    <span className="text-white font-medium">{value}</span>
+                    <span className="text-[#1a2e1a]/40">{label}</span>
+                    <span className="text-[#1a2e1a] font-medium">{value}</span>
                   </div>
                 ))}
                 {imagePreview && (
                   <div className="flex justify-between text-sm items-center">
-                    <span className="text-white/40">Image</span>
+                    <span className="text-[#1a2e1a]/40">Image</span>
                     <img src={imagePreview} alt="NFT" className="w-10 h-10 rounded-lg object-cover" />
                   </div>
                 )}
@@ -372,10 +372,10 @@ if (!metadataCid) throw new Error("Metadata CID missing");
                 disabled={!isConnected || isPending}
                 className={`w-full rounded-2xl px-5 py-4 font-bold text-sm transition flex items-center justify-center gap-2 ${
                   !isConnected
-                    ? "bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5"
+                    ? "bg-[#e0dbd0] text-[#7a9e7a] cursor-not-allowed border border-[#1a4a2e]/15"
                     : isPending
-                    ? "bg-[#077345]/60 text-white/70 cursor-not-allowed"
-                    : "bg-[#077345] hover:bg-[#066039] text-white"
+                    ? "bg-[#1a4a2e]/50 text-[#f5f0e8]/70 cursor-not-allowed"
+                    : "bg-[#1a4a2e] hover:bg-[#143d24] text-[#f5f0e8]"
                 }`}
               >
                 {isPending && (
@@ -399,7 +399,7 @@ if (!metadataCid) throw new Error("Metadata CID missing");
                   : "Deploy Collection"}
               </button>
 
-              <p className="text-center text-zinc-700 text-xs">
+              <p className="text-center text-[#7a9e7a] text-xs">
                 Deploying on Ritual Testnet · Chain ID 1979
               </p>
             </div>
@@ -408,23 +408,23 @@ if (!metadataCid) throw new Error("Metadata CID missing");
           {/* Step 3 — Success */}
           {displayStep === 3 && (
             <div className="flex flex-col items-center text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center mb-5">
+              <div className="w-16 h-16 rounded-full bg-[#1a4a2e]/10 border border-[#1a4a2e]/30 flex items-center justify-center mb-5">
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                  <path d="M6 14L11 19L22 8" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6 14L11 19L22 8" stroke="#1a4a2e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
               <h2 className="text-2xl font-black">Collection Deployed! 🎉</h2>
-              <p className="text-zinc-500 text-sm mt-2 max-w-xs leading-relaxed">
+              <p className="text-[#4a6741] text-sm mt-2 max-w-xs leading-relaxed">
                 Your NFT collection is live on Ritual Testnet. Share the mint page with your collectors!
               </p>
               {txHash && (
-                <div className="mt-5 w-full rounded-xl border border-white/5 bg-black/30 p-4 text-left">
-                  <p className="text-zinc-600 text-xs mb-1">Transaction Hash</p>
+                <div className="mt-5 w-full rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/30 p-4 text-left">
+                  <p className="text-[#7a9e7a] text-xs mb-1">Transaction Hash</p>
                   <a
                     href={`https://explorer.ritualfoundation.org/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono text-emerald-400 text-xs break-all hover:underline"
+                    className="font-mono text-[#1a4a2e] text-xs break-all hover:underline"
                   >
                     {txHash}
                   </a>
@@ -434,14 +434,14 @@ if (!metadataCid) throw new Error("Metadata CID missing");
                 {deployedSlug && (
                   <Link
                     href={`/collections/${deployedSlug}/mint`}
-                    className="flex-1 flex items-center justify-center rounded-2xl bg-[#077345] hover:bg-[#066039] transition px-4 py-3 text-sm font-bold text-white"
+                    className="flex-1 flex items-center justify-center rounded-2xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-4 py-3 text-sm font-bold text-[#f5f0e8]"
                   >
                     View Mint Page
                   </Link>
                 )}
                 <Link
                   href="/collections"
-                  className="flex-1 flex items-center justify-center rounded-2xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-3 text-sm font-bold text-emerald-400"
+                  className="flex-1 flex items-center justify-center rounded-2xl border border-[#1a4a2e]/30 hover:bg-[#1a4a2e]/10 transition px-4 py-3 text-sm font-bold text-[#1a4a2e]"
                 >
                   All Collections
                 </Link>
@@ -451,11 +451,11 @@ if (!metadataCid) throw new Error("Metadata CID missing");
 
           {/* Navigation */}
           {displayStep < 3 && (
-            <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-5">
+            <div className="mt-6 flex items-center justify-between border-t border-[#1a4a2e]/20 pt-5">
               <button
                 onClick={() => setStep((c) => Math.max(c - 1, 0))}
                 disabled={displayStep === 0}
-                className="rounded-2xl border border-white/10 px-5 py-3 text-sm text-white/70 hover:text-white disabled:opacity-30 transition"
+                className="rounded-2xl border border-[#1a4a2e]/20 px-5 py-3 text-sm text-[#1a2e1a]/70 hover:text-[#1a2e1a] disabled:opacity-30 transition"
               >
                 Previous
               </button>
@@ -465,7 +465,7 @@ if (!metadataCid) throw new Error("Metadata CID missing");
                   disabled={
                     displayStep === 0 ? !canProceedStep0 : !canProceedStep1
                   }
-                  className="rounded-2xl bg-[#077345] px-5 py-3 text-sm font-medium text-white hover:bg-[#066039] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  className="rounded-2xl bg-[#1a4a2e] px-5 py-3 text-sm font-medium text-[#f5f0e8] hover:bg-[#143d24] disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   Continue
                 </button>
