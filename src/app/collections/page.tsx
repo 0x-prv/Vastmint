@@ -7,6 +7,9 @@ import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
+const HIDDEN_COLLECTIONS = [
+  "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
+].map(a => a.toLowerCase());
 
 export default function CollectionsPage() {
   const { data: factoryCollections, isLoading: factoryLoading } = useReadContract({
@@ -15,6 +18,10 @@ export default function CollectionsPage() {
     functionName: "getAllCollections",
     chainId: RITUAL_CHAIN_ID,
   });
+
+  const visibleCollections = (factoryCollections ?? []).filter(
+    col => !HIDDEN_COLLECTIONS.includes(col.contractAddress.toLowerCase())
+  );
 
   return (
     <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
@@ -30,13 +37,11 @@ export default function CollectionsPage() {
         </div>
 
         <div className="space-y-4">
-    
-          {/* Dynamic - Factory Collections */}
           {factoryLoading && (
             <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] h-48 animate-pulse" />
           )}
 
-          {factoryCollections?.map((col) => {
+          {visibleCollections.map((col) => {
             const imageUrl = col.image?.startsWith("ipfs://")
               ? `https://ipfs.io/ipfs/${col.image.replace("ipfs://", "")}`
               : col.image;
