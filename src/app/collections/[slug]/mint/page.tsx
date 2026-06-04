@@ -140,16 +140,40 @@ export default function MintPage() {
 
     const nextTokenId = minted;
 
-    const metadata = {
-      name: `${collection.name} #${nextTokenId}`,
-      description: collection.description,
-      image: collection.image,
-      attributes: [
-        { trait_type: "Collection", value: collection.name },
-        { trait_type: "Symbol", value: collection.symbol },
-        { trait_type: "Token ID", value: String(nextTokenId) },
-      ],
-    };
+    // Rarity system
+const rarityRoll = Math.random() * 100;
+const rarity =
+  rarityRoll < 5 ? "Legendary" :
+  rarityRoll < 15 ? "Epic" :
+  rarityRoll < 35 ? "Rare" :
+  "Common";
+
+const rarityColor: Record<string, string> = {
+  Legendary: "Gold",
+  Epic: "Purple",
+  Rare: "Blue",
+  Common: "Gray",
+};
+
+const backgrounds = ["Deep Forest", "Void Black", "Emerald Mist", "Shadow Realm", "Neon Green"];
+const powerLevels = ["Novice", "Apprentice", "Adept", "Master", "Grandmaster"];
+
+const metadata = {
+  name: `${collection.name} #${nextTokenId}`,
+  description: collection.description,
+  image: collection.image,
+  attributes: [
+    { trait_type: "Collection", value: collection.name },
+    { trait_type: "Symbol", value: collection.symbol },
+    { trait_type: "Token ID", value: String(nextTokenId) },
+    { trait_type: "Rarity", value: rarity },
+    { trait_type: "Rarity Color", value: rarityColor[rarity] },
+    { trait_type: "Background", value: backgrounds[Math.floor(Math.random() * backgrounds.length)] },
+    { trait_type: "Power Level", value: powerLevels[Math.floor(Math.random() * powerLevels.length)] },
+    { trait_type: "Network", value: "Ritual Testnet" },
+    { trait_type: "Minted By", value: address },
+  ],
+};
 
     const metadataRes = await fetch("/api/pinata/json", {
       method: "POST",
