@@ -146,10 +146,10 @@ function NFTCard({
   const priceInRitual = formatEther(listing.price);
 
   return (
-    <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden hover:border-[#077345]/40 transition-all duration-300">
+    <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] overflow-hidden hover:border-[#1a4a2e]/40 transition-all duration-300">
       {/* Image */}
       <Link href={`/nft/${listing.nftContract}/${listing.tokenId}`}>
-        <div className="h-52 relative overflow-hidden bg-[#0d2518]">
+        <div className="h-52 relative overflow-hidden bg-[#e8e3d8]">
           {image ? (
             <img
               src={image}
@@ -157,13 +157,13 @@ function NFTCard({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center">
               <svg
                 width="32"
                 height="32"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#077345"
+                stroke="#1a4a2e"
                 strokeWidth="1"
               >
                 <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -172,10 +172,10 @@ function NFTCard({
               </svg>
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05150f] via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#f5f0e8] via-transparent to-transparent" />
           {isMine && (
             <div className="absolute top-3 right-3">
-              <span className="rounded-full border border-emerald-700/30 bg-emerald-900/40 px-2 py-0.5 text-xs font-bold text-emerald-400">
+              <span className="rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-2 py-0.5 text-xs font-bold text-[#1a4a2e]">
                 Yours
               </span>
             </div>
@@ -186,10 +186,10 @@ function NFTCard({
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
-            <p className="text-white font-bold text-sm">
+            <p className="text-[#1a2e1a] font-bold text-sm">
               Token #{listing.tokenId.toString()}
             </p>
-            <p className="text-zinc-600 text-xs mt-0.5">
+            <p className="text-[#7a9e7a] text-xs mt-0.5">
               {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
             </p>
           </div>
@@ -197,7 +197,7 @@ function NFTCard({
             href={`${EXPLORER_URL}/address/${listing.nftContract}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-zinc-600 hover:text-emerald-400 transition"
+            className="text-[#7a9e7a] hover:text-[#1a4a2e] transition"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <path d="M3.5 3a.5.5 0 000 1H7.3L2.15 9.15a.5.5 0 00.7.7L8 4.7V8.5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5h-5z" />
@@ -207,14 +207,14 @@ function NFTCard({
 
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-zinc-600 text-xs">Price</p>
-            <p className="text-emerald-400 font-black text-lg">
+            <p className="text-[#7a9e7a] text-xs">Price</p>
+            <p className="text-[#1a4a2e] font-black text-lg">
               {priceInRitual} RITUAL
             </p>
           </div>
           <div className="text-right">
-            <p className="text-zinc-600 text-xs">Listed</p>
-            <p className="text-zinc-400 text-xs">
+            <p className="text-[#7a9e7a] text-xs">Listed</p>
+            <p className="text-[#4a6741] text-xs">
               {new Date(Number(listing.createdAt) * 1000).toLocaleDateString()}
             </p>
           </div>
@@ -231,10 +231,10 @@ function NFTCard({
             disabled={!isConnected || isBuying}
             className={`w-full py-3 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${
               !isConnected
-                ? "bg-zinc-900 text-zinc-600 cursor-not-allowed border border-white/5"
+                ? "bg-[#e0dbd0] text-[#7a9e7a] cursor-not-allowed border border-[#1a4a2e]/15"
                 : isBuying
-                ? "bg-[#077345]/60 text-white/70 cursor-not-allowed"
-                : "bg-[#077345] hover:bg-[#066039] text-white"
+                ? "bg-[#1a4a2e]/50 text-[#f5f0e8]/70 cursor-not-allowed"
+                : "bg-[#1a4a2e] hover:bg-[#143d24] text-[#f5f0e8]"
             }`}
           >
             {isBuying && (
@@ -458,15 +458,15 @@ function MarketplacePage() {
     : [];
 
   return (
-    <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
+    <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#077345]/8 rounded-full blur-[140px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#1a4a2e]/5 rounded-full blur-[140px]" />
       </div>
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-10">
-          <p className="text-[#077345] text-xs font-bold uppercase tracking-[0.18em] mb-2">
+          <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em] mb-2">
             VastMint
           </p>
           <h1 className="text-5xl md:text-6xl font-black leading-tight">
@@ -474,7 +474,7 @@ function MarketplacePage() {
             <br />
             VastMint NFTs.
           </h1>
-          <p className="text-zinc-500 mt-4 max-w-xl text-sm leading-relaxed">
+          <p className="text-[#4a6741] mt-4 max-w-xl text-sm leading-relaxed">
             Explore live listings from VastMint collections deployed on Ritual
             Testnet.
           </p>
@@ -483,15 +483,15 @@ function MarketplacePage() {
         {/* Search indicator */}
         {searchQuery && (
           <div className="mb-6 flex items-center gap-3">
-            <p className="text-zinc-400 text-sm">
+            <p className="text-[#4a6741] text-sm">
               Search results for:{" "}
-              <span className="text-white font-bold">
+              <span className="text-[#1a2e1a] font-bold">
                 &ldquo;{searchQuery}&rdquo;
               </span>
             </p>
             <Link
               href="/marketplace"
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition underline"
+              className="text-xs text-[#7a9e7a] hover:text-[#4a6741] transition underline"
             >
               Clear
             </Link>
@@ -510,10 +510,10 @@ function MarketplacePage() {
           ].map(({ label, value }) => (
             <div
               key={label}
-              className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] px-5 py-4 text-center"
+              className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] px-5 py-4 text-center"
             >
-              <p className="text-zinc-600 text-xs">{label}</p>
-              <p className="text-white font-black text-xl mt-1">{value}</p>
+              <p className="text-[#7a9e7a] text-xs">{label}</p>
+              <p className="text-[#1a2e1a] font-black text-xl mt-1">{value}</p>
             </div>
           ))}
         </div>
@@ -526,8 +526,8 @@ function MarketplacePage() {
               onClick={() => setActiveFilter(f)}
               className={`rounded-xl px-5 py-2.5 text-sm font-medium transition border ${
                 activeFilter === f
-                  ? "border-[#077345] bg-[#077345]/20 text-white"
-                  : "border-[#077345]/20 text-zinc-500 hover:border-[#077345]/40 hover:text-white"
+                  ? "border-[#1a4a2e] bg-[#1a4a2e]/20 text-[#1a2e1a]"
+                  : "border-[#1a4a2e]/20 text-[#4a6741] hover:border-[#1a4a2e]/40 hover:text-[#1a2e1a]"
               }`}
             >
               {f}
@@ -537,7 +537,7 @@ function MarketplacePage() {
           {isConnected && (
             <Link
               href="/dashboard"
-              className="ml-auto rounded-xl px-5 py-2.5 text-sm font-medium border border-[#077345]/30 text-emerald-400 hover:bg-[#077345]/10 transition"
+              className="ml-auto rounded-xl px-5 py-2.5 text-sm font-medium border border-[#1a4a2e]/30 text-[#1a4a2e] hover:bg-[#1a4a2e]/10 transition"
             >
               My NFTs / List
             </Link>
@@ -569,7 +569,7 @@ function MarketplacePage() {
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] h-72 animate-pulse"
+                className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] h-72 animate-pulse"
               />
             ))}
           </div>
@@ -577,13 +577,13 @@ function MarketplacePage() {
 
         {/* Empty */}
         {!isLoading && sortedListings.length === 0 && (
-          <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-16 text-center">
-            <p className="text-zinc-500 text-sm">
+          <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-16 text-center">
+            <p className="text-[#4a6741] text-sm">
               {searchQuery
                 ? `No listings found for "${searchQuery}".`
                 : "No active listings yet."}
             </p>
-            <p className="text-zinc-700 text-xs mt-2">
+            <p className="text-[#7a9e7a] text-xs mt-2">
               {searchQuery
                 ? "Try a different search term."
                 : "Mint an NFT and list it for sale from your dashboard."}
@@ -592,7 +592,7 @@ function MarketplacePage() {
               {searchQuery ? (
                 <Link
                   href="/marketplace"
-                  className="rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
+                  className="rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-5 py-3 text-sm font-bold text-[#f5f0e8]"
                 >
                   View All Listings
                 </Link>
@@ -600,14 +600,14 @@ function MarketplacePage() {
                 <>
                   <Link
                     href="/collections"
-                    className="rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
+                    className="rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-5 py-3 text-sm font-bold text-[#f5f0e8]"
                   >
                     Mint NFT
                   </Link>
                   {isConnected && (
                     <Link
                       href="/dashboard"
-                      className="rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-5 py-3 text-sm font-bold text-emerald-400"
+                      className="rounded-xl border border-[#1a4a2e]/30 hover:bg-[#1a4a2e]/10 transition px-5 py-3 text-sm font-bold text-[#1a4a2e]"
                     >
                       My Dashboard
                     </Link>
@@ -619,7 +619,7 @@ function MarketplacePage() {
         )}
 
         {isRefetching && !isLoading && (
-          <p className="mb-4 text-zinc-600 text-xs">
+          <p className="mb-4 text-[#7a9e7a] text-xs">
             Refreshing marketplace listings...
           </p>
         )}
@@ -643,7 +643,7 @@ function MarketplacePage() {
           </div>
         )}
 
-        <p className="text-center text-zinc-700 text-xs mt-10">
+        <p className="text-center text-[#7a9e7a] text-xs mt-10">
           VastMint Marketplace · Ritual Testnet · Chain ID 1979 · 2% platform
           fee · 5% creator royalty
         </p>

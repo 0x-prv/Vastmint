@@ -130,9 +130,9 @@ function OwnedNFTCard({
   const displayName = meta?.name || `${nft.collection.name} #${nft.tokenId.toString()}`;
 
   return (
-    <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] overflow-hidden">
+    <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] overflow-hidden">
       <Link href={`/nft/${nft.contractAddress}/${nft.tokenId.toString()}`}>
-        <div className="h-40 bg-gradient-to-br from-[#0d2518] via-[#071a0f] to-[#040f09] flex items-center justify-center relative">
+        <div className="h-40 bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center relative">
           {displayImage ? (
             <img
               src={displayImage}
@@ -140,33 +140,33 @@ function OwnedNFTCard({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="text-zinc-700 font-mono text-xs">
+            <div className="text-[#7a9e7a] font-mono text-xs">
               #{nft.tokenId.toString()}
             </div>
           )}
           {activeListing && (
-            <span className="absolute top-3 right-3 rounded-full border border-emerald-700/30 bg-emerald-900/40 px-2 py-0.5 text-xs font-bold text-emerald-400">
+            <span className="absolute top-3 right-3 rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-2 py-0.5 text-xs font-bold text-[#1a4a2e]">
               Listed
             </span>
           )}
         </div>
       </Link>
       <div className="p-4">
-        <p className="text-white font-bold text-sm truncate">{displayName}</p>
-        <p className="text-zinc-600 text-xs mt-0.5">
+        <p className="text-[#1a2e1a] font-bold text-sm truncate">{displayName}</p>
+        <p className="text-[#7a9e7a] text-xs mt-0.5">
           Token #{nft.tokenId.toString()} · {nft.collection.symbol}
         </p>
         {activeListing ? (
-          <div className="mt-3 rounded-xl border border-white/5 bg-black/20 px-4 py-2">
-            <p className="text-zinc-600 text-xs">Active Listing</p>
-            <p className="text-emerald-400 font-black text-sm">
+          <div className="mt-3 rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/70 px-4 py-2">
+            <p className="text-[#7a9e7a] text-xs">Active Listing</p>
+            <p className="text-[#1a4a2e] font-black text-sm">
               {formatEther(activeListing.price)} RITUAL
             </p>
           </div>
         ) : (
           <button
             onClick={onListClick}
-            className="mt-3 w-full rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-2 text-sm font-bold text-emerald-400"
+            className="mt-3 w-full rounded-xl border border-[#1a4a2e]/30 hover:bg-[#1a4a2e]/10 transition px-4 py-2 text-sm font-bold text-[#1a4a2e]"
           >
             List for Sale
           </button>
@@ -409,16 +409,16 @@ export default function DashboardPage() {
 
   if (!isConnected) {
     return (
-      <main className="min-h-screen bg-[#05150f] text-white px-4 pt-6 pb-24 flex items-center justify-center">
+      <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] px-4 pt-6 pb-24 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-[#077345]/20 border border-[#077345]/30 flex items-center justify-center mx-auto mb-5">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#077345" strokeWidth="2">
+          <div className="w-16 h-16 rounded-full bg-[#1a4a2e]/20 border border-[#1a4a2e]/30 flex items-center justify-center mx-auto mb-5">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a4a2e" strokeWidth="2">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <h2 className="text-2xl font-black">Connect Your Wallet</h2>
-          <p className="text-zinc-500 text-sm mt-2">
+          <p className="text-[#4a6741] text-sm mt-2">
             Connect your wallet to view your dashboard.
           </p>
         </div>
@@ -427,23 +427,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#05150f] text-white px-4 sm:px-6 pt-6 pb-24">
+    <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] px-4 sm:px-6 pt-6 pb-24">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#077345]/8 rounded-full blur-[140px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#1a4a2e]/5 rounded-full blur-[140px]" />
       </div>
 
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-[#077345] text-xs font-bold uppercase tracking-[0.18em] mb-2">Dashboard</p>
+            <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em] mb-2">Dashboard</p>
             <h1 className="text-4xl font-black">My VastMint</h1>
-            <p className="text-zinc-500 text-sm mt-2">
+            <p className="text-[#4a6741] text-sm mt-2">
               Manage NFTs, listings, and deployed collections across VastMint factory collections.
             </p>
           </div>
           <Link
             href="/collections"
-            className="rounded-xl border border-[#077345]/30 hover:bg-[#077345]/10 transition px-4 py-2 text-sm font-bold text-emerald-400"
+            className="rounded-xl border border-[#1a4a2e]/30 hover:bg-[#1a4a2e]/10 transition px-4 py-2 text-sm font-bold text-[#1a4a2e]"
           >
             Mint More
           </Link>
@@ -455,9 +455,9 @@ export default function DashboardPage() {
             { label: "Active Listings", value: activeListings.length.toString() },
             { label: "Collections Created", value: myCollections ? myCollections.length.toString() : "0" },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] px-5 py-4">
-              <p className="text-zinc-600 text-xs">{label}</p>
-              <p className="text-white font-black text-2xl mt-1">{value}</p>
+            <div key={label} className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] px-5 py-4">
+              <p className="text-[#7a9e7a] text-xs">{label}</p>
+              <p className="text-[#1a2e1a] font-black text-2xl mt-1">{value}</p>
             </div>
           ))}
         </div>
@@ -469,8 +469,8 @@ export default function DashboardPage() {
               onClick={() => setActiveTab(tab)}
               className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                 activeTab === tab
-                  ? "bg-[#077345]/20 border border-[#077345] text-white"
-                  : "text-zinc-500 hover:text-white border border-transparent"
+                  ? "bg-[#1a4a2e]/20 border border-[#1a4a2e] text-[#1a2e1a]"
+                  : "text-[#4a6741] hover:text-[#1a2e1a] border border-transparent"
               }`}
             >
               {tab}
@@ -487,40 +487,40 @@ export default function DashboardPage() {
               </div>
             )}
             {ownershipLoading ? (
-              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">
+              <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-12 text-center">
+                <p className="text-[#4a6741] text-sm">
                   Scanning owned NFTs across factory collections…
                 </p>
               </div>
             ) : ownedNfts.length === 0 ? (
-              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">
+              <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-12 text-center">
+                <p className="text-[#4a6741] text-sm">
                   You don&apos;t own any VastMint NFTs yet.
                 </p>
                 <Link
                   href="/collections"
-                  className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
+                  className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-5 py-3 text-sm font-bold text-[#f5f0e8]"
                 >
                   Mint Your First NFT
                 </Link>
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-zinc-500 text-sm">
+                <p className="text-[#4a6741] text-sm">
                   You own {ownedNfts.length} NFT{ownedNfts.length > 1 ? "s" : ""} across{" "}
                   {new Set(ownedNfts.map((n) => n.contractAddress)).size} collection
                   {new Set(ownedNfts.map((n) => n.contractAddress)).size > 1 ? "s" : ""}.
                 </p>
 
                 {listingDraft && (
-                  <div className="rounded-2xl border border-[#077345]/30 bg-[#0b1f17] p-5 space-y-4">
-                    <p className="text-white font-bold">
+                  <div className="rounded-2xl border border-[#1a4a2e]/30 bg-[#ede8df] p-5 space-y-4">
+                    <p className="text-[#1a2e1a] font-bold">
                       List {listingDraft.collectionName} #{listingDraft.tokenId.toString()} for Sale
                     </p>
                     <input
                       value={listPrice}
                       onChange={(e) => setListPrice(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-[#05150f] px-4 py-3 text-white outline-none focus:border-[#077345] transition"
+                      className="w-full rounded-xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
                       placeholder="Price in RITUAL (e.g. 0.05)"
                     />
                     {errorMsg && <p className="text-red-400 text-sm">{errorMsg}</p>}
@@ -528,7 +528,7 @@ export default function DashboardPage() {
                       <button
                         onClick={() => handleList(listingDraft.contractAddress, listingDraft.tokenId)}
                         disabled={listingState === "approving" || listingState === "listing"}
-                        className="flex-1 rounded-xl bg-[#077345] hover:bg-[#066039] disabled:opacity-50 transition px-4 py-3 text-sm font-bold text-white flex items-center justify-center gap-2"
+                        className="flex-1 rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] disabled:opacity-50 transition px-4 py-3 text-sm font-bold text-[#f5f0e8] flex items-center justify-center gap-2"
                       >
                         {(listingState === "approving" || listingState === "listing") && (
                           <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -545,7 +545,7 @@ export default function DashboardPage() {
                           setListingState("idle");
                           setErrorMsg(null);
                         }}
-                        className="rounded-xl border border-white/10 px-4 py-3 text-sm text-zinc-400 hover:text-white transition"
+                        className="rounded-xl border border-[#1a4a2e]/20 px-4 py-3 text-sm text-[#4a6741] hover:text-[#1a2e1a] transition"
                       >
                         Cancel
                       </button>
@@ -583,11 +583,11 @@ export default function DashboardPage() {
         {activeTab === "My Listings" && (
           <div>
             {activeListings.length === 0 ? (
-              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">You have no active listings.</p>
+              <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-12 text-center">
+                <p className="text-[#4a6741] text-sm">You have no active listings.</p>
                 <button
                   onClick={() => setActiveTab("My NFTs")}
-                  className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
+                  className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-5 py-3 text-sm font-bold text-[#f5f0e8]"
                 >
                   List an NFT
                 </button>
@@ -600,40 +600,40 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={listing.listingId.toString()}
-                      className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-5 flex items-center justify-between gap-4 flex-wrap"
+                      className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-5 flex items-center justify-between gap-4 flex-wrap"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-[#077345]/20 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-xl bg-[#1a4a2e]/20 overflow-hidden flex items-center justify-center flex-shrink-0">
                           {imageUrl ? (
                             <img src={imageUrl} alt={collection?.name ?? "NFT"} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-zinc-700 text-xs">#{listing.tokenId.toString()}</span>
+                            <span className="text-[#7a9e7a] text-xs">#{listing.tokenId.toString()}</span>
                           )}
                         </div>
                         <div>
-                          <p className="text-white font-bold text-sm">
+                          <p className="text-[#1a2e1a] font-bold text-sm">
                             {collection?.name ?? "Unknown Collection"} #{listing.tokenId.toString()}
                           </p>
-                          <p className="text-zinc-600 text-xs mt-0.5">
+                          <p className="text-[#7a9e7a] text-xs mt-0.5">
                             {listing.nftContract.slice(0, 6)}...{listing.nftContract.slice(-4)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div>
-                          <p className="text-zinc-600 text-xs">Price</p>
-                          <p className="text-emerald-400 font-black">{formatEther(listing.price)} RITUAL</p>
+                          <p className="text-[#7a9e7a] text-xs">Price</p>
+                          <p className="text-[#1a4a2e] font-black">{formatEther(listing.price)} RITUAL</p>
                         </div>
                         <div>
-                          <p className="text-zinc-600 text-xs">Listed</p>
-                          <p className="text-zinc-400 text-xs">
+                          <p className="text-[#7a9e7a] text-xs">Listed</p>
+                          <p className="text-[#4a6741] text-xs">
                             {new Date(Number(listing.createdAt) * 1000).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="flex gap-2">
                           <Link
                             href={`/nft/${listing.nftContract}/${listing.tokenId.toString()}`}
-                            className="rounded-xl border border-white/5 hover:bg-white/5 transition px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300"
+                            className="rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-3 py-2 text-xs text-[#4a6741] hover:text-[#1a2e1a]"
                           >
                             NFT
                           </Link>
@@ -641,7 +641,7 @@ export default function DashboardPage() {
                             href={`${EXPLORER_URL}/address/${listing.nftContract}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded-xl border border-white/5 hover:bg-white/5 transition px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300"
+                            className="rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-3 py-2 text-xs text-[#4a6741] hover:text-[#1a2e1a]"
                           >
                             Explorer
                           </a>
@@ -665,13 +665,13 @@ export default function DashboardPage() {
         {activeTab === "My Collections" && (
           <div>
             {!myCollections || myCollections.length === 0 ? (
-              <div className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-12 text-center">
-                <p className="text-zinc-500 text-sm">
+              <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-12 text-center">
+                <p className="text-[#4a6741] text-sm">
                   You haven&apos;t deployed any collections yet.
                 </p>
                 <Link
                   href="/launchpad/create"
-                  className="mt-4 inline-flex rounded-xl bg-[#077345] hover:bg-[#066039] transition px-5 py-3 text-sm font-bold text-white"
+                  className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-5 py-3 text-sm font-bold text-[#f5f0e8]"
                 >
                   Deploy Collection
                 </Link>
@@ -683,34 +683,34 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={col.contractAddress}
-                      className="rounded-2xl border border-[#077345]/20 bg-[#0b1f17] p-5 flex items-center justify-between gap-4 flex-wrap"
+                      className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-5 flex items-center justify-between gap-4 flex-wrap"
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
                           {imageUrl ? (
                             <img src={imageUrl} alt={col.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-[#077345]/20" />
+                            <div className="w-full h-full bg-[#1a4a2e]/20" />
                           )}
                         </div>
                         <div>
-                          <p className="text-white font-bold text-sm">{col.name}</p>
-                          <p className="text-zinc-600 text-xs mt-0.5">
+                          <p className="text-[#1a2e1a] font-bold text-sm">{col.name}</p>
+                          <p className="text-[#7a9e7a] text-xs mt-0.5">
                             {col.symbol} · {Number(col.maxSupply).toLocaleString()} supply
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div>
-                          <p className="text-zinc-600 text-xs">Price</p>
-                          <p className="text-emerald-400 font-bold text-sm">
+                          <p className="text-[#7a9e7a] text-xs">Price</p>
+                          <p className="text-[#1a4a2e] font-bold text-sm">
                             {col.mintPrice === 0n ? "Free" : `${formatEther(col.mintPrice)} RITUAL`}
                           </p>
                         </div>
                         <div className="flex gap-2">
                           <Link
                             href={`/collections/${col.slug}/mint`}
-                            className="rounded-xl bg-[#077345] hover:bg-[#066039] transition px-3 py-2 text-xs font-bold text-white"
+                            className="rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-3 py-2 text-xs font-bold text-[#f5f0e8]"
                           >
                             Mint Page
                           </Link>
@@ -718,7 +718,7 @@ export default function DashboardPage() {
                             href={`${EXPLORER_URL}/address/${col.contractAddress}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded-xl border border-white/5 hover:bg-white/5 transition px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300"
+                            className="rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-3 py-2 text-xs text-[#4a6741] hover:text-[#1a2e1a]"
                           >
                             Explorer
                           </a>

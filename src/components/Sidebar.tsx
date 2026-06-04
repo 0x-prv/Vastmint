@@ -136,11 +136,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <aside className="flex flex-col h-full w-64 bg-[#060f09] border-r border-[#077345]/10">
+    <aside className="flex flex-col h-full w-64 bg-[#e0dbd0] border-r border-[#1a4a2e]/10">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-[#077345]/10">
+      <div className="px-5 py-5 border-b border-[#1a4a2e]/10">
         <Link href="/" className="flex items-center gap-3" onClick={onClose}>
-          <div className="w-9 h-9 rounded-xl overflow-hidden bg-black border border-[#077345]/30 flex-shrink-0">
+          <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#e0dbd0] border border-[#1a4a2e]/30 flex-shrink-0">
             <Image
               src="/Vastmint.png"
               alt="VastMint"
@@ -152,14 +152,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <p className="text-sm font-black tracking-tight">VastMint</p>
-            <p className="text-[10px] text-zinc-600">Ritual Ecosystem</p>
+            <p className="text-[10px] text-[#7a9e7a]">Ritual Ecosystem</p>
           </div>
         </Link>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-[10px] font-bold text-zinc-700 uppercase tracking-widest px-3 mb-3">
+        <p className="text-[10px] font-bold text-[#7a9e7a] uppercase tracking-widest px-3 mb-3">
           Navigation
         </p>
         {NAV_ITEMS.map((item) => {
@@ -171,14 +171,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                 isActive
-                  ? "bg-[#077345]/20 text-white border border-[#077345]/30"
-                  : "text-zinc-500 hover:text-white hover:bg-white/5"
+                  ? "bg-[#1a4a2e]/20 text-[#1a2e1a] border border-[#1a4a2e]/30"
+                  : "text-[#4a6741] hover:text-[#1a2e1a] hover:bg-[#1a4a2e]/10"
               }`}
             >
-              <span className={isActive ? "text-emerald-400" : ""}>{item.icon}</span>
+              <span className={isActive ? "text-[#1a4a2e]" : ""}>{item.icon}</span>
               {item.label}
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1a4a2e]" />
               )}
             </Link>
           );
@@ -201,37 +201,37 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </nav>
 
       {/* Wallet Section */}
-      <div className="px-3 pb-4 pt-3 border-t border-[#077345]/10 space-y-3">
+      <div className="px-3 pb-4 pt-3 border-t border-[#1a4a2e]/10 space-y-3">
         {isConnected && address ? (
           <>
             {/* Portfolio summary */}
-            <div className="rounded-xl bg-[#0b1f17] border border-[#077345]/15 p-3 space-y-2">
+            <div className="rounded-xl bg-[#ede8df] border border-[#1a4a2e]/15 p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#077345]/30 border border-[#077345]/40 flex items-center justify-center flex-shrink-0">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-emerald-400">
+                <div className="w-7 h-7 rounded-full bg-[#1a4a2e]/30 border border-[#1a4a2e]/40 flex items-center justify-center flex-shrink-0">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#1a4a2e]">
                     <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2a8 8 0 00-8 8h16a8 8 0 00-8-8z" />
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-white text-xs font-bold truncate font-mono">
+                  <p className="text-[#1a2e1a] text-xs font-bold truncate font-mono">
                     {address.slice(0, 6)}...{address.slice(-4)}
                   </p>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <p className="text-[10px] text-emerald-400">Ritual Testnet</p>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1a4a2e] animate-pulse" />
+                    <p className="text-[10px] text-[#1a4a2e]">Ritual Testnet</p>
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="rounded-lg bg-black/30 px-2.5 py-2 text-center">
-                  <p className="text-[10px] text-zinc-600">NFTs</p>
-                  <p className="text-white font-black text-sm mt-0.5">
+                <div className="rounded-lg bg-[#e0dbd0]/30 px-2.5 py-2 text-center">
+                  <p className="text-[10px] text-[#7a9e7a]">NFTs</p>
+                  <p className="text-[#1a2e1a] font-black text-sm mt-0.5">
                     {nftBalance.toString()}
                   </p>
                 </div>
-                <div className="rounded-lg bg-black/30 px-2.5 py-2 text-center">
-                  <p className="text-[10px] text-zinc-600">Listings</p>
-                  <p className="text-white font-black text-sm mt-0.5">
+                <div className="rounded-lg bg-[#e0dbd0]/30 px-2.5 py-2 text-center">
+                  <p className="text-[10px] text-[#7a9e7a]">Listings</p>
+                  <p className="text-[#1a2e1a] font-black text-sm mt-0.5">
                     {myListings ? myListings.length.toString() : "0"}
                   </p>
                 </div>
@@ -244,7 +244,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             </div>
           </>
         ) : (
-          <div className="[&>div]:w-full [&>div>button]:w-full [&>div>button]:justify-center [&>div>button]:rounded-xl [&>div>button]:font-bold [&>div>button]:py-3 [&>div>button]:bg-[#077345] [&>div>button]:text-white [&>div>button]:text-sm">
+          <div className="[&>div]:w-full [&>div>button]:w-full [&>div>button]:justify-center [&>div>button]:rounded-xl [&>div>button]:font-bold [&>div>button]:py-3 [&>div>button]:bg-[#1a4a2e] [&>div>button]:text-[#f5f0e8] [&>div>button]:text-sm">
             <ConnectButton showBalance={false} chainStatus="none" />
           </div>
         )}
