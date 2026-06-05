@@ -131,6 +131,7 @@ if (!metaRes.ok) throw new Error("Metadata upload failed");
 const metaData = await metaRes.json();
 const metadataCid = metaData.IpfsHash as string;
 if (!metadataCid) throw new Error("Metadata CID missing");
+const imageUri = `ipfs://${cid}`;
 
       // Step 3: Switch network if needed
       if (isWrongNetwork) {
@@ -151,7 +152,7 @@ if (!metadataCid) throw new Error("Metadata CID missing");
           name.trim(),
           symbol.trim().toUpperCase(),
           description.trim(),
-          `ipfs://${metadataCid}`,
+          imageUri,
           BigInt(supply),
           mintPriceWei,
           slug,
