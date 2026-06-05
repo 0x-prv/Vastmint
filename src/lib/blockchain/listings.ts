@@ -56,48 +56,67 @@ export async function fetchMarketplaceListings(
   publicClient: PublicClient,
   filter: ListingFilter = {}
 ): Promise<MarketplaceListing[]> {
-  const nextListingId = await publicClient.readContract({
-    ...marketplaceContract,
-    functionName: "nextListingId",
-  });
+  try {
+    const result = await publicClient.readContract({
+      ...marketplaceContract,
+      functionName: "getActiveListings",
+    });
 
-  if (nextListingId <= 1n) return [];
+    const seller = filter.seller?.toLowerCase();
+    const nftContract = filter.nftContract?.toLowerCase();
 
-  const listingIds = Array.from(
-    { length: Number(nextListingId - 1n) },
-    (_, index) => BigInt(index + 1)
-  );
+    return (result as unknown[])
+      .map((item) => normalizeListing(item as unknown as MarketplaceListing))
+      .filter((listing) => listing.active)
+      .filter((listing) => !seller || listing.seller.toLowerCase() === seller)
+      .filter(
+        (listing) =>
+          !nftContract || listing.nftContract.toLowerCase() === nftContract
+      );
+  } catch {
+    // Fallback sa old method kung hindi supported ang getActiveListings
+    const nextListingId = await publicClient.readContract({
+      ...marketplaceContract,
+      functionName: "nextListingId",
+    });
 
-  const results = await Promise.all(
-    listingIds.map(async (listingId) => {
-      try {
-        return await publicClient.readContract({
-          ...marketplaceContract,
-          functionName: "listings",
-          args: [listingId],
-        });
-      } catch {
-        return null;
-      }
-    })
-  );
+    if (nextListingId <= 1n) return [];
 
-  const seller = filter.seller?.toLowerCase();
-  const nftContract = filter.nftContract?.toLowerCase();
-
-  return results
-    .flatMap((result) => {
-      if (!result) return [];
-      return [normalizeListing(result as unknown as MarketplaceListing)];
-    })
-    .filter((listing) => listing.active)
-    .filter((listing) => !seller || listing.seller.toLowerCase() === seller)
-    .filter(
-      (listing) =>
-        !nftContract || listing.nftContract.toLowerCase() === nftContract
+    const listingIds = Array.from(
+      { length: Number(nextListingId - 1n) },
+      (_, index) => BigInt(index + 1)
     );
-}
 
+    const results = await Promise.all(
+      listingIds.map(async (listingId) => {
+        try {
+          return await publicClient.readContract({
+            ...marketplaceContract,
+            functionName: "listings",
+            args: [listingId],
+          });
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const seller = filter.seller?.toLowerCase();
+    const nftContract = filter.nftContract?.toLowerCase();
+
+    return results
+      .flatMap((result) => {
+        if (!result) return [];
+        return [normalizeListing(result as unknown as MarketplaceListing)];
+      })
+      .filter((listing) => listing.active)
+      .filter((listing) => !seller || listing.seller.toLowerCase() === seller)
+      .filter(
+        (listing) =>
+          !nftContract || listing.nftContract.toLowerCase() === nftContract
+      );
+  }
+}
 import { parseAbiItem } from "viem";
 
 type SafeChunkParams = {
@@ -106,7 +125,6 @@ type SafeChunkParams = {
   args?: Record<string, unknown>;
   fromBlock?: bigint;
 };
-
 export async function getLogsInSafeChunks(
   publicClient: PublicClient,
   params: SafeChunkParams
