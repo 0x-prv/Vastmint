@@ -391,21 +391,27 @@ export default function DashboardPage() {
   }
 
   async function handleCancel(listingId: bigint) {
-    try {
-      if (!publicClient) return;
-      const hash = await writeContractAsync({
-        address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
-        abi: VASTMINT_MARKETPLACE_ABI,
-        functionName: "cancelListing",
-        args: [listingId],
-        chainId: RITUAL_CHAIN_ID,
-      });
-      await publicClient.waitForTransactionReceipt({ hash });
-      await refetchListings();
-    } catch (err) {
-      console.error(err);
+  try {
+    if (!publicClient) return;
+
+    if (chainId !== RITUAL_CHAIN_ID) {
+      await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
     }
+
+    const hash = await writeContractAsync({
+      address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
+      abi: VASTMINT_MARKETPLACE_ABI,
+      functionName: "cancelListing",
+      args: [listingId],
+      chainId: RITUAL_CHAIN_ID,
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+    await refetchListings();
+  } catch (err) {
+    console.error(err);
   }
+}
 
   if (!isConnected) {
     return (
