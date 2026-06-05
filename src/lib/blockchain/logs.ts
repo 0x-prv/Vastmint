@@ -1,8 +1,10 @@
 import type { AbiEvent, PublicClient } from "viem";
-import { VASTMINT_NFT_ADDRESS } from "@/lib/blockchain/contracts";
+import {
+  VASTMINT_NFT_ADDRESS,
+  VASTMINT_FACTORY_ADDRESS,
+} from "@/lib/blockchain/contracts";
 
 const MAX_SAFE_LOG_BLOCK_RANGE = 50_000n;
-const FALLBACK_LOG_LOOKBACK_BLOCKS = 99_999n;
 
 type GetLogsParameters = Parameters<PublicClient["getLogs"]>[0];
 
@@ -17,23 +19,24 @@ type SafeGetLogsParameters = {
   address: `0x${string}`;
   event: AbiEvent;
   args?: Record<string, unknown>;
+  fromBlock?: bigint;
 };
 
+// Deployment blocks para sa known contracts.
+// Kung undefined — mag-scan mula block 0 (safe para sa testnet).
+// I-update mo ang values kapag alam na ang exact deployment blocks.
 const CONTRACT_DEPLOYMENT_BLOCKS: Record<string, bigint | undefined> = {
   [VASTMINT_NFT_ADDRESS.toLowerCase()]: undefined,
+  [VASTMINT_FACTORY_ADDRESS.toLowerCase()]: undefined,
 };
 
 function getScanStartBlock(
   contractAddress: `0x${string}`,
-  latestBlock: bigint
-) {
-  const configuredStart =
-    CONTRACT_DEPLOYMENT_BLOCKS[contractAddress.toLowerCase()];
-  if (configuredStart !== undefined) return configuredStart;
-
-  return latestBlock > FALLBACK_LOG_LOOKBACK_BLOCKS
-    ? latestBlock - FALLBACK_LOG_LOOKBACK_BLOCKS
-    : 0n;
+): bigint {
+  const configured = CONTRACT_DEPLOYMENT_BLOCKS[contractAddress.toLowerCase()];
+  // Kung may configured deployment block — gamitin yun
+  // Kung wala — mula block 0 para hindi mawala ang lumang NFTs
+  return configured ?? 0n;
 }
 
 export async function getLogsInSafeChunks(
@@ -41,7 +44,10 @@ export async function getLogsInSafeChunks(
   parameters: SafeGetLogsParameters
 ): Promise<SafeLog[]> {
   const latestBlock = await publicClient.getBlockNumber();
-  const startBlock = getScanStartBlock(parameters.address, latestBlock);
+
+  // Pwedeng i-override ang fromBlock kung kailangan
+  const startBlock = parameters.fromBlock ?? getScanStartBlock(parameters.address);
+
   const logs: SafeLog[] = [];
 
   for (
@@ -54,13 +60,18 @@ export async function getLogsInSafeChunks(
         ? latestBlock
         : fromBlock + MAX_SAFE_LOG_BLOCK_RANGE;
 
-    const chunkLogs = await publicClient.getLogs({
-      ...parameters,
-      fromBlock,
-      toBlock,
-    } as GetLogsParameters);
+    try {
+      const chunkLogs = await publicClient.getLogs({
+        ...parameters,
+        fromBlock,
+        toBlock,
+      } as GetLogsParameters);
 
-    logs.push(...(chunkLogs as unknown as SafeLog[]));
+      logs.push(...(chunkLogs as unknown as SafeLog[]));
+    } catch (err) {
+      // Skip failed chunk — hindi natin gusto na mag-crash ang buong scan
+      console.warn(`Log scan failed for blocks ${fromBlock}-${toBlock}:`, err);
+    }
   }
 
   return logs;

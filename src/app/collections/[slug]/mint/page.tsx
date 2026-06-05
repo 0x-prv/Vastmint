@@ -120,115 +120,95 @@ export default function MintPage() {
     displayMintState === "switching" ||
     displayMintState === "confirming";
 
-  async function handleMint() {
-  if (!address || !contractAddress || !collection) return;
-  if (isSoldOut) return;
+  
+     async function handleMint() {
+    if (!address || !contractAddress || !collection) return;
+    if (isSoldOut) return;
 
-  setErrorMsg(null);
+    setErrorMsg(null);
 
-  try {
-    if (isWrongNetwork) {
-      setMintState("switching");
-      await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
-    }
+    try {
+      if (isWrongNetwork) {
+        setMintState("switching");
+        await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      }
 
-    if (!isMintPriceLoaded) {
-      setErrorMsg("Mint price is still loading. Please try again.");
+      if (!isMintPriceLoaded) {
+        setErrorMsg("Mint price is still loading. Please try again.");
+        setMintState("error");
+        return;
+      }
+
+      setMintState("uploading");
+
+      const nextTokenId = minted;
+
+      // Check localStorage for CSV metadata
+      const storedMeta = localStorage.getItem(`vastmint_metadata_${slug}`);
+      const csvMetadata = storedMeta ? JSON.parse(storedMeta) : null;
+      const csvToken = csvMetadata?.[nextTokenId] ?? null;
+
+      // Build metadata — no random/placeholder traits
+      const metadata = {
+        name: csvToken?.name ?? `${collection.name} #${nextTokenId}`,
+        description: csvToken?.description ?? collection.description,
+        image: collection.image,
+        attributes: [
+          { trait_type: "Collection", value: collection.name },
+          { trait_type: "Symbol", value: collection.symbol },
+          { trait_type: "Token ID", value: nextTokenId.toString() }, // ✅ actual token ID
+          { trait_type: "Network", value: "Ritual Testnet" },
+          { trait_type: "Minted By", value: address },
+          // ✅ CSV traits only — no random fallback traits
+          ...(csvToken?.attributes ?? []),
+        ],
+      };
+
+      const metadataRes = await fetch("/api/pinata/json", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metadata),
+      });
+
+      if (!metadataRes.ok) {
+        throw new Error("Metadata upload failed");
+      }
+
+      const metadataJson = await metadataRes.json();
+      const metadataCid =
+        metadataJson.IpfsHash || metadataJson.cid || metadataJson.ipfsHash;
+
+      if (!metadataCid) {
+        throw new Error("Metadata CID missing");
+      }
+
+      const tokenURI = `ipfs://${metadataCid}`;
+
+      setMintState("pending");
+
+      const tx = await writeContractAsync({
+        address: contractAddress,
+        abi: VASTMINT_NFT_ABI,
+        functionName: "mintNFT",
+        args: [address, tokenURI],
+        value: mintPrice as bigint,
+      });
+
+      setTxHash(tx);
+      setMintState("confirming");
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "Transaction failed";
+      const short =
+        message.includes("rejected") || message.includes("denied")
+          ? "Transaction rejected by wallet."
+          : message.includes("Metadata upload") || message.includes("Metadata CID")
+          ? "Metadata upload failed. Please try again."
+          : "Mint failed. Please try again.";
+      setErrorMsg(short);
       setMintState("error");
-      return;
     }
-
-    setMintState("uploading");
-
-    const nextTokenId = minted;
-
-    // Check localStorage for CSV metadata
-const storedMeta = localStorage.getItem(`vastmint_metadata_${slug}`);
-const csvMetadata = storedMeta ? JSON.parse(storedMeta) : null;
-const csvToken = csvMetadata?.[nextTokenId] ?? null;
-
-    // Rarity system
-const rarityRoll = Math.random() * 100;
-const rarity =
-  rarityRoll < 5 ? "Legendary" :
-  rarityRoll < 15 ? "Epic" :
-  rarityRoll < 35 ? "Rare" :
-  "Common";
-
-const rarityColor: Record<string, string> = {
-  Legendary: "Gold",
-  Epic: "Purple",
-  Rare: "Blue",
-  Common: "Gray",
-};
-
-const backgrounds = ["Deep Forest", "Void Black", "Emerald Mist", "Shadow Realm", "Neon Green"];
-const powerLevels = ["Novice", "Apprentice", "Adept", "Master", "Grandmaster"];
-
-const metadata = {
-  name: `${csvToken?.name ?? `${collection.name} #${nextTokenId}`}`,
-  description: collection.description,
-  image: collection.image,
-  attributes: [
-  { trait_type: "Collection", value: collection.name },
-  { trait_type: "Symbol", value: collection.symbol },
-  { trait_type: "Token ID", value: "TBD" },
-  ...(csvToken ? csvToken.attributes : [
-    { trait_type: "Rarity", value: rarity },
-    { trait_type: "Rarity Color", value: rarityColor[rarity] },
-    { trait_type: "Background", value: backgrounds[Math.floor(Math.random() * backgrounds.length)] },
-    { trait_type: "Power Level", value: powerLevels[Math.floor(Math.random() * powerLevels.length)] },
-  ]),
-  { trait_type: "Network", value: "Ritual Testnet" },
-  { trait_type: "Minted By", value: address },
-],
-};
-    const metadataRes = await fetch("/api/pinata/json", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(metadata),
-    });
-
-    if (!metadataRes.ok) {
-      throw new Error("Metadata upload failed");
-    }
-
-    const metadataJson = await metadataRes.json();
-
-    const metadataCid =
-      metadataJson.IpfsHash || metadataJson.cid || metadataJson.ipfsHash;
-
-    if (!metadataCid) {
-      throw new Error("Metadata CID missing");
-    }
-
-    const tokenURI = `ipfs://${metadataCid}`;
-
-    setMintState("pending");
-
-    const tx = await writeContractAsync({
-      address: contractAddress,
-      abi: VASTMINT_NFT_ABI,
-      functionName: "mintNFT",
-      args: [address, tokenURI],
-      value: mintPrice as bigint,
-    });
-
-    setTxHash(tx);
-    setMintState("confirming");
-  } catch (err: unknown) {
-    console.error(err);
-    const message = err instanceof Error ? err.message : "Transaction failed";
-    const short =
-      message.includes("rejected") || message.includes("denied")
-        ? "Transaction rejected by wallet."
-        : message.includes("Metadata upload") || message.includes("Metadata CID")
-        ? "Metadata upload failed. Please try again."
-        : "Mint failed. Please try again.";
-    setErrorMsg(short);
-    setMintState("error");
   }
-}
 
   function reset() {
     setMintState("idle");
