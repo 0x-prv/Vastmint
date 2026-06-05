@@ -102,6 +102,8 @@ function NFTCard({
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const [cancelling, setCancelling] = useState(false);
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain(); 
 
   const { data: tokenURIData } = useReadContract({
     address: collection.contractAddress,
@@ -129,10 +131,15 @@ function NFTCard({
   const displayName = meta?.name || `#${tokenId}`;
 
   async function handleCancel() {
-    if (!publicClient || !listing) return;
-    setCancelling(true);
-    try {
-      const tx = await writeContractAsync({
+  if (!publicClient || !listing) return;
+  setCancelling(true);
+
+  try {
+    if (chainId !== RITUAL_CHAIN_ID) {
+      await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+    }
+
+    const tx = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
         functionName: "cancelListing",
