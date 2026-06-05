@@ -122,6 +122,8 @@ export default function MintPage() {
 
   async function handleMint() {
   if (!address || !contractAddress || !collection) return;
+  if (isSoldOut) return;
+
   setErrorMsg(null);
 
   try {
@@ -550,6 +552,7 @@ const metadata = {
                     disabled={
                       !isConnected ||
                       isPending ||
+                      isSoldOut ||
                       (!isWrongNetwork && !isMintPriceLoaded)
                     }
                     className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
