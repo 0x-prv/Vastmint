@@ -261,57 +261,60 @@ export default function DashboardPage() {
         const wallet = address.toLowerCase();
         let failedScans = 0;
 
-        for (const collection of allCollections) {
-          try {
-            const [incoming, outgoing] = await Promise.all([
-              getLogsInSafeChunks(publicClient, {
-                address: collection.contractAddress,
-                event: transferEvent,
-                args: { to: address },
-              }),
-              getLogsInSafeChunks(publicClient, {
-                address: collection.contractAddress,
-                event: transferEvent,
-                args: { from: address },
-              }),
-            ]);
+    const scanResults = await Promise.allSettled(
+     allCollections.map(async (collection) => {
+    const [incoming, outgoing] = await Promise.all([
+      getLogsInSafeChunks(publicClient, {
+        address: collection.contractAddress,
+        event: transferEvent,
+        args: { to: address },
+      }),
+      getLogsInSafeChunks(publicClient, {
+        address: collection.contractAddress,
+        event: transferEvent,
+        args: { from: address },
+      }),
+    ]);
 
-            const events = [...incoming, ...outgoing].sort((a, b) => {
-              if (a.blockNumber !== b.blockNumber)
-                return a.blockNumber < b.blockNumber ? -1 : 1;
-              return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
-            });
+    const events = [...incoming, ...outgoing].sort((a, b) => {
+      if (a.blockNumber !== b.blockNumber)
+        return a.blockNumber < b.blockNumber ? -1 : 1;
+      return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
+    });
 
-            const ownedSet = new Set<string>();
-            for (const event of events) {
-              const from =
-                typeof event.args.from === "string"
-                  ? event.args.from.toLowerCase()
-                  : undefined;
-              const to =
-                typeof event.args.to === "string"
-                  ? event.args.to.toLowerCase()
-                  : undefined;
-              const tokenId = event.args.tokenId;
-              if (typeof tokenId !== "bigint") continue;
-              if (from === wallet) ownedSet.delete(tokenId.toString());
-              if (to === wallet) ownedSet.add(tokenId.toString());
-            }
+    const ownedSet = new Set<string>();
+    for (const event of events) {
+      const from = typeof event.args.from === "string"
+        ? event.args.from.toLowerCase() : undefined;
+      const to = typeof event.args.to === "string"
+        ? event.args.to.toLowerCase() : undefined;
+      const tokenId = event.args.tokenId;
+      if (typeof tokenId !== "bigint") continue;
+      if (from === wallet) ownedSet.delete(tokenId.toString());
+      if (to === wallet) ownedSet.add(tokenId.toString());
+    }
 
-            for (const tokenId of ownedSet) {
-              nextOwned.push({
-                contractAddress: collection.contractAddress,
-                tokenId: BigInt(tokenId),
-                collection,
-              });
-            }
-          } catch (err) {
-            failedScans += 1;
-            console.error(`Unable to scan Transfer logs for ${collection.contractAddress}`, err);
-          }
-        }
+    return { collection, ownedSet };
+  })
+);
 
-        nextOwned.sort((a, b) => {
+for (const result of scanResults) {
+  if (result.status === "fulfilled") {
+    const { collection, ownedSet } = result.value;
+    for (const tokenId of ownedSet) {
+      nextOwned.push({
+        contractAddress: collection.contractAddress,
+        tokenId: BigInt(tokenId),
+        collection,
+      });
+    }
+  } else {
+    failedScans += 1;
+    console.error("Unable to scan collection", result.reason);
+  }
+}
+          
+      nextOwned.sort((a, b) => {
           const cc = a.collection.name.localeCompare(b.collection.name);
           if (cc !== 0) return cc;
           return a.tokenId < b.tokenId ? -1 : a.tokenId > b.tokenId ? 1 : 0;
