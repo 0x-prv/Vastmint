@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatEther } from "viem";
@@ -65,6 +65,7 @@ export default function MintPage() {
   const [mintState, setMintState] = useState<MintState>("idle");
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
 
   // Fetch collection from Factory
   const { data: collectionData, isLoading: collectionLoading } =
@@ -107,10 +108,22 @@ export default function MintPage() {
 
   const isSoldOut = maxSupply > 0 && minted >= maxSupply;
 
-  const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
+  const { isSuccess: txConfirmed, data: txReceipt } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && mintState === "confirming" },
   });
+
+  // I-parse ang actual minted token ID mula sa Transfer event
+  useEffect(() => {
+    if (!txConfirmed || !txReceipt) return;
+    const transferLog = txReceipt.logs.find(
+      (log) => log.topics[0] === "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    );
+    if (transferLog?.topics[3]) {
+      const tokenId = Number(BigInt(transferLog.topics[3]));
+      queueMicrotask(() => setMintedTokenId(tokenId));
+    }
+  }, [txConfirmed, txReceipt]);
 
   const displayMintState =
     txConfirmed && mintState === "confirming" ? "success" : mintState;
@@ -210,11 +223,13 @@ export default function MintPage() {
     }
   }
 
-  function reset() {
+    function reset() {
     setMintState("idle");
     setTxHash(undefined);
     setErrorMsg(null);
+    setMintedTokenId(null);
   }
+
 
   if (collectionLoading) {
     return (
@@ -425,9 +440,13 @@ export default function MintPage() {
                     </svg>
                   </div>
                   <h2 className="text-2xl font-black">Mint Successful!</h2>
-                  <p className="text-[#4a6741] text-sm mt-2 max-w-xs leading-relaxed">
-                    Your NFT has been minted and will appear in your dashboard
-                    shortly.
+                 <p className="text-[#4a6741] text-sm mt-2 max-w-xs leading-relaxed">
+                   Your NFT has been minted and will appear in your dashboard shortly.
+                   {mintedTokenId !== null && (
+                   <span className="block mt-1 font-bold text-[#1a4a2e]">
+                  Token #{mintedTokenId}
+                    </span>
+                          )}
                   </p>
                   <div className="mt-6 w-full rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/30 p-4 text-left">
                     <p className="text-[#7a9e7a] text-xs mb-2">

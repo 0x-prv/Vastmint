@@ -34,23 +34,31 @@ function resolveIpfs(uri: string): string {
   return uri;
 }
 
+// ✅ Fixed — kasama na ang attributes
+type TokenAttribute = {
+  trait_type: string;
+  value: string | number;
+};
+
 async function fetchMetadata(uri: string): Promise<{
   name: string;
   description: string;
   image: string;
+  attributes: TokenAttribute[];
 }> {
   try {
     const url = resolveIpfs(uri);
-    if (!url) return { name: "", description: "", image: "" };
+    if (!url) return { name: "", description: "", image: "", attributes: [] };
     const res = await fetch(url);
     const json = await res.json();
     return {
       name: json.name ?? "",
       description: json.description ?? "",
       image: resolveIpfs(json.image ?? ""),
+      attributes: Array.isArray(json.attributes) ? json.attributes : [],
     };
   } catch {
-    return { name: "", description: "", image: "" };
+    return { name: "", description: "", image: "", attributes: [] };
   }
 }
 
@@ -98,6 +106,7 @@ export default function NFTDetailPage() {
   const [tokenName, setTokenName] = useState("");
   const [tokenDescription, setTokenDescription] = useState("");
   const [tokenImage, setTokenImage] = useState("");
+  const [tokenAttributes, setTokenAttributes] = useState<TokenAttribute[]>([]); // ✅ Added
   const [metaLoading, setMetaLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
@@ -112,7 +121,6 @@ export default function NFTDetailPage() {
     query: { enabled: !!buyTxHash && buyState === "confirming" },
   });
 
-  // Fix 1a — queueMicrotask avoids synchronous setState inside effect body
   useEffect(() => {
     if (buyConfirmed && buyState === "confirming") {
       queueMicrotask(() => setBuyState("success"));
@@ -198,17 +206,16 @@ export default function NFTDetailPage() {
     (l) => l.active && l.tokenId === (tokenId ?? 0n)
   );
 
-  // Fix 1b — removed synchronous setMetaLoading(true) from effect body,
-  // metaLoading starts as true and is only set false after fetch completes.
-  // Cancellation flag prevents stale state updates.
+  // ✅ Fixed — kasama na ang attributes sa fetch
   useEffect(() => {
     if (!tokenURIData) return;
     let cancelled = false;
-    fetchMetadata(tokenURIData as string).then(({ name, description, image }) => {
+    fetchMetadata(tokenURIData as string).then(({ name, description, image, attributes }) => {
       if (cancelled) return;
       setTokenName(name);
       setTokenDescription(description);
       setTokenImage(image);
+      setTokenAttributes(attributes);
       setMetaLoading(false);
     });
     return () => {
@@ -216,8 +223,6 @@ export default function NFTDetailPage() {
     };
   }, [tokenURIData]);
 
-  // Fix 1c — removed synchronous setActivityLoading(true) from effect body.
-  // activityLoading starts as true so the spinner shows immediately.
   useEffect(() => {
     if (!publicClient || !contractAddress || !id || tokenId === null) return;
 
@@ -280,17 +285,12 @@ export default function NFTDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Invalid token ID guard
   if (tokenId === null) {
     return (
       <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
         <div className="text-center">
           <p className="text-[#4a6741] text-sm">Invalid token ID.</p>
-          {/* Fix 2a — Link replaces <a> for internal navigation */}
-          <Link
-            href="/collections"
-            className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]"
-          >
+          <Link href="/collections" className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]">
             Back to Collections
           </Link>
         </div>
@@ -317,11 +317,7 @@ export default function NFTDetailPage() {
       <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] flex items-center justify-center">
         <div className="text-center">
           <p className="text-[#4a6741] text-sm">Collection not found.</p>
-          {/* Fix 2b — Link replaces <a> for internal navigation */}
-          <Link
-            href="/collections"
-            className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]"
-          >
+          <Link href="/collections" className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] px-5 py-3 text-sm font-bold text-[#f5f0e8]">
             Back to Collections
           </Link>
         </div>
@@ -337,10 +333,7 @@ export default function NFTDetailPage() {
 
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-xs text-[#7a9e7a] mb-8">
-          {/* Fix 2c — Link replaces <a> for internal navigation */}
-          <Link href="/collections" className="hover:text-[#4a6741] transition">
-            Collections
-          </Link>
+          <Link href="/collections" className="hover:text-[#4a6741] transition">Collections</Link>
           <span>/</span>
           <Link href={`/collections/${collectionInfo.slug}`} className="hover:text-[#4a6741] transition">
             {collectionInfo.name}
@@ -380,6 +373,28 @@ export default function NFTDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* ✅ Traits/Attributes Section */}
+            {!metaLoading && tokenAttributes.length > 0 && (
+              <div className="rounded-2xl border border-[#1a4a2e]/15 bg-[#ede8df] p-5">
+                <p className="text-xs font-bold text-[#7a9e7a] uppercase tracking-widest mb-4">Traits</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {tokenAttributes.map((attr, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/50 px-3 py-2.5 text-center"
+                    >
+                      <p className="text-[#7a9e7a] text-[10px] uppercase tracking-wider truncate">
+                        {attr.trait_type}
+                      </p>
+                      <p className="text-[#1a2e1a] font-bold text-xs mt-0.5 truncate">
+                        {String(attr.value)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-[#1a4a2e]/15 bg-[#ede8df] p-5">
               <p className="text-xs font-bold text-[#7a9e7a] uppercase tracking-widest mb-4">Details</p>
@@ -540,7 +555,7 @@ export default function NFTDetailPage() {
                 )}
 
                 <a
-                  href={`${EXPLORER_URL}/token/${contractAddress}?a=${id}`}
+                 href={`${EXPLORER_URL}/address/${contractAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#1a4a2e]/20 hover:bg-[#1a4a2e]/10 transition px-4 py-4 text-sm font-bold text-[#4a6741] hover:text-[#1a2e1a]"
@@ -556,10 +571,7 @@ export default function NFTDetailPage() {
                 ["Minted", minted.toLocaleString()],
                 ["Listed", activeListing ? "Yes" : "No"],
               ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-xl bg-[#ede8df] border border-[#1a4a2e]/10 px-4 py-4 text-center"
-                >
+                <div key={label} className="rounded-xl bg-[#ede8df] border border-[#1a4a2e]/10 px-4 py-4 text-center">
                   <p className="text-[#7a9e7a] text-xs">{label}</p>
                   <p className="font-black mt-1 text-[#1a2e1a]">{value}</p>
                 </div>
@@ -618,7 +630,7 @@ export default function NFTDetailPage() {
             </div>
 
             <a
-              href={`${EXPLORER_URL}/token/${contractAddress}`}
+              href={`${EXPLORER_URL}/address/${contractAddress}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-4 py-3 text-xs font-bold text-[#7a9e7a] hover:text-[#4a6741]"
