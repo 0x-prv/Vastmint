@@ -142,6 +142,11 @@ export default function MintPage() {
 
     const nextTokenId = minted;
 
+    // Check localStorage for CSV metadata
+const storedMeta = localStorage.getItem(`vastmint_metadata_${slug}`);
+const csvMetadata = storedMeta ? JSON.parse(storedMeta) : null;
+const csvToken = csvMetadata?.[nextTokenId] ?? null;
+
     // Rarity system
 const rarityRoll = Math.random() * 100;
 const rarity =
@@ -165,18 +170,19 @@ const metadata = {
   description: collection.description,
   image: collection.image,
   attributes: [
-    { trait_type: "Collection", value: collection.name },
-    { trait_type: "Symbol", value: collection.symbol },
-    { trait_type: "Token ID", value: String(nextTokenId) },
+  { trait_type: "Collection", value: collection.name },
+  { trait_type: "Symbol", value: collection.symbol },
+  { trait_type: "Token ID", value: String(nextTokenId) },
+  ...(csvToken ? csvToken.attributes : [
     { trait_type: "Rarity", value: rarity },
     { trait_type: "Rarity Color", value: rarityColor[rarity] },
     { trait_type: "Background", value: backgrounds[Math.floor(Math.random() * backgrounds.length)] },
     { trait_type: "Power Level", value: powerLevels[Math.floor(Math.random() * powerLevels.length)] },
-    { trait_type: "Network", value: "Ritual Testnet" },
-    { trait_type: "Minted By", value: address },
-  ],
+  ]),
+  { trait_type: "Network", value: "Ritual Testnet" },
+  { trait_type: "Minted By", value: address },
+],
 };
-
     const metadataRes = await fetch("/api/pinata/json", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

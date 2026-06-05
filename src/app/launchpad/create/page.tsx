@@ -11,8 +11,54 @@ const steps = ["Details", "Upload", "Deploy", "Success"];
 
 type DeployState = "idle" | "uploading" | "switching" | "pending" | "confirming" | "success" | "error";
 
+type TokenMetadata = {
+  name: string;
+  description: string;
+  attributes: { trait_type: string; value: string }[];
+};
+
 function slugify(text: string) {
   return text.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
+}
+
+function parseCSV(csvText: string, collectionName: string): TokenMetadata[] {
+  const lines = csvText.trim().split("\n").filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const nameIdx = headers.indexOf("name");
+  const descIdx = headers.indexOf("description");
+
+  // All other columns = traits
+  const traitCols = headers
+    .map((h, i) => ({ h, i }))
+    .filter(({ h }) => h !== "name" && h !== "description");
+
+  return lines.slice(1).map((line, rowIdx) => {
+    const cols = line.split(",").map((c) => c.trim());
+    const tokenName = nameIdx >= 0 && cols[nameIdx] ? cols[nameIdx] : `${collectionName} #${rowIdx + 1}`;
+    const tokenDesc = descIdx >= 0 && cols[descIdx] ? cols[descIdx] : "";
+    const attributes = traitCols
+      .map(({ h, i }) => ({ trait_type: h, value: cols[i] ?? "" }))
+      .filter(({ value }) => value !== "");
+    return { name: tokenName, description: tokenDesc, attributes };
+  });
+}
+
+function downloadCSVTemplate(collectionName: string, supply: string) {
+  const count = Math.min(Number(supply) || 3, 5);
+  const header = "name,description,background,eyes,mouth";
+  const rows = Array.from({ length: count }, (_, i) =>
+    `${collectionName || "NFT"} #${i + 1},My NFT description,Blue,Normal,Smile`
+  );
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "vastmint-metadata-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function LaunchpadCreatePage() {
@@ -34,11 +80,22 @@ export default function LaunchpadCreatePage() {
   const [supply, setSupply] = useState("");
   const [price, setPrice] = useState("0");
 
-  // Step 1 - Upload
+  // Step 1 - Upload (single cover image — used by deploy logic)
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageCid, setImageCid] = useState<string | null>(null);
+
+  // Step 1 - Bulk NFT images
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
+  // Step 1 - CSV metadata
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const isWrongNetwork = isConnected && chainId !== RITUAL_CHAIN_ID;
 
@@ -55,18 +112,48 @@ export default function LaunchpadCreatePage() {
     displayDeployState === "pending" ||
     displayDeployState === "confirming";
 
+  // Cleanup object URLs on unmount
   useEffect(() => {
     return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [imagePreview]);
+  }, [imagePreviews]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+
+    setImageFile(files[0]);
+    setImagePreview(URL.createObjectURL(files[0]));
+    setImageCid(null);
+
+    setImageFiles(files);
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setImagePreviews(previews);
+  }
+
+  function handleCSVChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    setImageCid(null);
+    setCsvFile(file);
+    setCsvError(null);
+    setTokenMetadata([]);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      try {
+        const parsed = parseCSV(text, name);
+        if (parsed.length === 0) {
+          setCsvError("CSV is empty or invalid. Check the format.");
+          return;
+        }
+        setTokenMetadata(parsed);
+      } catch {
+        setCsvError("Failed to parse CSV. Make sure it follows the template format.");
+      }
+    };
+    reader.readAsText(file);
   }
 
   async function uploadToPinata(file: File): Promise<string | null> {
@@ -95,7 +182,7 @@ export default function LaunchpadCreatePage() {
     setDeployState("uploading");
 
     try {
-      // Step 1: Upload image
+      // Step 1: Upload cover image
       let cid = imageCid;
       if (!cid) {
         cid = await uploadToPinata(imageFile);
@@ -119,19 +206,19 @@ export default function LaunchpadCreatePage() {
       };
 
       const metaRes = await fetch("/api/pinata/json", {
-     method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    pinataContent: metadata,
-    pinataMetadata: { name: `${name}-metadata` },
-  }),
-});
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pinataContent: metadata,
+          pinataMetadata: { name: `${name}-metadata` },
+        }),
+      });
 
-if (!metaRes.ok) throw new Error("Metadata upload failed");
-const metaData = await metaRes.json();
-const metadataCid = metaData.IpfsHash as string;
-if (!metadataCid) throw new Error("Metadata CID missing");
-const imageUri = `ipfs://${cid}`;
+      if (!metaRes.ok) throw new Error("Metadata upload failed");
+      const metaData = await metaRes.json();
+      const metadataCid = metaData.IpfsHash as string;
+      if (!metadataCid) throw new Error("Metadata CID missing");
+      const imageUri = `ipfs://${cid}`;
 
       // Step 3: Switch network if needed
       if (isWrongNetwork) {
@@ -162,6 +249,10 @@ const imageUri = `ipfs://${cid}`;
       setTxHash(tx);
       setDeployedSlug(slug);
       setDeployState("confirming");
+      if (tokenMetadata.length > 0) {
+  localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(tokenMetadata));
+    }
+
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Deploy failed";
@@ -180,6 +271,11 @@ const imageUri = `ipfs://${cid}`;
     description.trim().length > 0 &&
     Number(supply) > 0;
   const canProceedStep1 = !!imageFile;
+
+  // Trait column headers from CSV (excluding name/description)
+  const traitHeaders = tokenMetadata.length > 0
+    ? Object.keys(tokenMetadata[0].attributes.reduce((acc, a) => ({ ...acc, [a.trait_type]: true }), {} as Record<string, boolean>))
+    : [];
 
   return (
     <main className="min-h-screen bg-[#f5f0e8] px-5 pt-6 pb-24 text-[#1a2e1a]">
@@ -287,44 +383,195 @@ const imageUri = `ipfs://${cid}`;
 
           {/* Step 1 — Upload */}
           {displayStep === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+
+              {/* Hidden file inputs */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-2xl border border-dashed border-[#1a4a2e]/20 bg-[#1a4a2e]/5 p-10 text-center cursor-pointer hover:border-[#1a4a2e]/50 hover:bg-[#1a4a2e]/5 transition"
-              >
-                {imagePreview ? (
-                  <div className="flex flex-col items-center gap-3">
-                    <img src={imagePreview} alt="Preview" className="w-32 h-32 rounded-2xl object-cover" />
-                    <p className="text-sm text-[#1a4a2e]">{imageFile?.name}</p>
-                    <p className="text-xs text-[#1a2e1a]/40">Click to change</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="w-12 h-12 rounded-xl bg-[#1a4a2e]/20 flex items-center justify-center mx-auto mb-4">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a4a2e" strokeWidth="1.5">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleCSVChange}
+                className="hidden"
+              />
+
+              {/* Section: NFT Images */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#1a4a2e] mb-2">
+                  NFT Images
+                </p>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-2xl border border-dashed border-[#1a4a2e]/20 bg-[#1a4a2e]/5 p-8 text-center cursor-pointer hover:border-[#1a4a2e]/50 transition"
+                >
+                  {imageFiles.length > 0 ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-[#1a4a2e]/20 flex items-center justify-center mx-auto">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a4a2e" strokeWidth="1.5">
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-bold text-[#1a4a2e]">
+                        {imageFiles.length} file{imageFiles.length > 1 ? "s" : ""} selected
+                      </p>
+                      <p className="text-xs text-[#1a2e1a]/40">Click to change selection</p>
                     </div>
-                    <p className="text-sm text-[#1a2e1a]/70">Click to upload collection image</p>
-                    <p className="mt-1 text-xs text-[#1a2e1a]/30">PNG, JPG, GIF, WEBP — Max 10MB</p>
-                  </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-xl bg-[#1a4a2e]/20 flex items-center justify-center mx-auto mb-3">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a4a2e" strokeWidth="1.5">
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-[#1a2e1a]/70">Click to upload NFT images</p>
+                      <p className="mt-1 text-xs text-[#1a2e1a]/30">PNG, JPG, GIF, WEBP — Max 10MB each · Select multiple</p>
+                    </>
+                  )}
+                </div>
+
+                {/* Image preview grid */}
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {imagePreviews.map((src, i) => (
+                      <div key={i} className="relative aspect-square">
+                        <img
+                          src={src}
+                          alt={`NFT ${i + 1}`}
+                          className="w-full h-full rounded-xl object-cover border border-[#1a4a2e]/10"
+                        />
+                        <span className="absolute bottom-1 right-1 bg-[#1a4a2e]/70 text-[#f5f0e8] text-[10px] rounded px-1 leading-5">
+                          #{i + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Supply mismatch warning */}
+                {imageFiles.length > 0 && Number(supply) > 0 && imageFiles.length !== Number(supply) && (
+                  <div className="rounded-xl border border-yellow-700/30 bg-yellow-900/10 px-4 py-3 mt-3">
+                    <p className="text-yellow-500 text-xs">
+                      ⚠️ {imageFiles.length} image{imageFiles.length > 1 ? "s" : ""} selected pero ang max supply ay {supply}.
+                      {imageFiles.length < Number(supply)
+                        ? ` Kulang ng ${Number(supply) - imageFiles.length}.`
+                        : ` Sobra ng ${imageFiles.length - Number(supply)}.`}
+                    </p>
+                  </div>
+                )}
+
+                {/* IPFS confirmation */}
+                {imageCid && (
+                  <div className="rounded-xl bg-[#e0dbd0]/70 border border-[#1a4a2e]/30 px-4 py-3 mt-3">
+                    <p className="text-xs text-[#1a2e1a]/40">Cover image uploaded to IPFS ✓</p>
+                    <p className="text-xs text-[#1a4a2e] font-mono mt-0.5 break-all">ipfs://{imageCid}</p>
+                  </div>
                 )}
               </div>
-              {imageCid && (
-                <div className="rounded-xl bg-[#e0dbd0]/70 border border-[#1a4a2e]/30 px-4 py-3">
-                  <p className="text-xs text-[#1a2e1a]/40">Already uploaded to IPFS ✓</p>
-                  <p className="text-xs text-[#1a4a2e] font-mono mt-0.5 break-all">ipfs://{imageCid}</p>
+
+              {/* Divider */}
+              <div className="border-t border-[#1a4a2e]/10" />
+
+              {/* Section: CSV Metadata */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[#1a4a2e]">
+                    Metadata / Traits <span className="text-[#1a2e1a]/30 normal-case font-normal">(optional)</span>
+                  </p>
+                  <button
+                    onClick={() => downloadCSVTemplate(name, supply)}
+                    className="text-xs text-[#1a4a2e] border border-[#1a4a2e]/30 rounded-xl px-3 py-1.5 hover:bg-[#1a4a2e]/10 transition"
+                  >
+                    ↓ Download Template
+                  </button>
                 </div>
-              )}
+
+                <div
+                  onClick={() => csvInputRef.current?.click()}
+                  className="rounded-2xl border border-dashed border-[#1a4a2e]/20 bg-[#1a4a2e]/5 p-6 text-center cursor-pointer hover:border-[#1a4a2e]/50 transition"
+                >
+                  {csvFile ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <p className="text-sm font-bold text-[#1a4a2e]">{csvFile.name}</p>
+                      <p className="text-xs text-[#1a2e1a]/40">
+                        {tokenMetadata.length > 0 ? `${tokenMetadata.length} tokens parsed ✓` : "Parsing..."}
+                      </p>
+                      <p className="text-xs text-[#1a2e1a]/30 mt-1">Click to change</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-[#1a2e1a]/70">Click to upload metadata CSV</p>
+                      <p className="mt-1 text-xs text-[#1a2e1a]/30">
+                        Download the template above, fill it in, then upload here
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* CSV parse error */}
+                {csvError && (
+                  <div className="rounded-xl border border-red-800/30 bg-red-900/10 px-4 py-3 mt-3">
+                    <p className="text-red-400 text-xs">⚠️ {csvError}</p>
+                  </div>
+                )}
+
+                {/* CSV mismatch warning */}
+                {tokenMetadata.length > 0 && imageFiles.length > 0 && tokenMetadata.length !== imageFiles.length && (
+                  <div className="rounded-xl border border-yellow-700/30 bg-yellow-900/10 px-4 py-3 mt-3">
+                    <p className="text-yellow-500 text-xs">
+                      ⚠️ {tokenMetadata.length} CSV rows pero {imageFiles.length} images. Dapat mag-match ang bilang.
+                    </p>
+                  </div>
+                )}
+
+                {/* Metadata preview table */}
+                {tokenMetadata.length > 0 && (
+                  <div className="mt-3 rounded-2xl border border-[#1a4a2e]/15 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-[#1a4a2e]/10">
+                            <th className="text-left px-3 py-2 text-[#1a2e1a]/50 font-medium">#</th>
+                            <th className="text-left px-3 py-2 text-[#1a2e1a]/50 font-medium">Name</th>
+                            {traitHeaders.map((h) => (
+                              <th key={h} className="text-left px-3 py-2 text-[#1a2e1a]/50 font-medium capitalize">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tokenMetadata.slice(0, 5).map((token, i) => (
+                            <tr key={i} className="border-t border-[#1a4a2e]/10">
+                              <td className="px-3 py-2 text-[#1a2e1a]/40">{i + 1}</td>
+                              <td className="px-3 py-2 text-[#1a2e1a]">{token.name}</td>
+                              {traitHeaders.map((h) => {
+                                const attr = token.attributes.find((a) => a.trait_type === h);
+                                return (
+                                  <td key={h} className="px-3 py-2 text-[#1a2e1a]/70">{attr?.value ?? "—"}</td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {tokenMetadata.length > 5 && (
+                      <p className="text-center text-xs text-[#1a2e1a]/30 py-2 border-t border-[#1a4a2e]/10">
+                        + {tokenMetadata.length - 5} more tokens
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -342,6 +589,10 @@ const imageUri = `ipfs://${cid}`;
                   { label: "Mint Price", value: price === "0" || !price ? "Free" : `${price} RITUAL` },
                   { label: "Slug", value: slugify(name) },
                   { label: "Network", value: "Ritual Testnet" },
+                  { label: "NFT Images", value: `${imageFiles.length} file${imageFiles.length > 1 ? "s" : ""} selected` },
+                  ...(tokenMetadata.length > 0
+                    ? [{ label: "Metadata", value: `${tokenMetadata.length} tokens from CSV ✓` }]
+                    : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-[#1a2e1a]/40">{label}</span>
@@ -350,7 +601,7 @@ const imageUri = `ipfs://${cid}`;
                 ))}
                 {imagePreview && (
                   <div className="flex justify-between text-sm items-center">
-                    <span className="text-[#1a2e1a]/40">Image</span>
+                    <span className="text-[#1a2e1a]/40">Cover Image</span>
                     <img src={imagePreview} alt="NFT" className="w-10 h-10 rounded-lg object-cover" />
                   </div>
                 )}
@@ -463,9 +714,7 @@ const imageUri = `ipfs://${cid}`;
               {displayStep < 2 && (
                 <button
                   onClick={() => setStep((c) => Math.min(c + 1, 2))}
-                  disabled={
-                    displayStep === 0 ? !canProceedStep0 : !canProceedStep1
-                  }
+                  disabled={displayStep === 0 ? !canProceedStep0 : !canProceedStep1}
                   className="rounded-2xl bg-[#1a4a2e] px-5 py-3 text-sm font-medium text-[#f5f0e8] hover:bg-[#143d24] disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   Continue
