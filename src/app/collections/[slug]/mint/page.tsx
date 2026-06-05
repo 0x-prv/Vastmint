@@ -166,13 +166,13 @@ const backgrounds = ["Deep Forest", "Void Black", "Emerald Mist", "Shadow Realm"
 const powerLevels = ["Novice", "Apprentice", "Adept", "Master", "Grandmaster"];
 
 const metadata = {
-  name: `${collection.name} #${nextTokenId}`,
+  name: `${csvToken?.name ?? `${collection.name} #${nextTokenId}`}`,
   description: collection.description,
   image: collection.image,
   attributes: [
   { trait_type: "Collection", value: collection.name },
   { trait_type: "Symbol", value: collection.symbol },
-  { trait_type: "Token ID", value: String(nextTokenId) },
+  { trait_type: "Token ID", value: "TBD" },
   ...(csvToken ? csvToken.attributes : [
     { trait_type: "Rarity", value: rarity },
     { trait_type: "Rarity Color", value: rarityColor[rarity] },
