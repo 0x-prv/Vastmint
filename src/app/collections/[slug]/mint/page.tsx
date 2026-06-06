@@ -277,12 +277,24 @@ try {
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Transaction failed";
-      const short =
-        message.includes("rejected") || message.includes("denied")
-          ? "Transaction rejected by wallet."
-          : message.includes("Metadata upload") || message.includes("Metadata CID")
-          ? "Metadata upload failed. Please try again."
-          : "Mint failed. Please try again.";
+     const short =
+  message.includes("rejected") || message.includes("denied")
+    ? "Transaction rejected by wallet."
+    : message.includes("Metadata upload") || message.includes("Metadata CID")
+    ? "Metadata upload failed. Please try again."
+    : message.includes("insufficient funds")
+    ? "Insufficient funds. Please add more RITUAL to your wallet."
+    : message.includes("Wallet mint limit") || message.includes("mintCount")
+    ? "You have reached the maximum mint limit for this collection."
+    : message.includes("Max supply reached") || message.includes("sold out")
+    ? "This collection is sold out."
+    : message.includes("Public mint not active") || message.includes("Whitelist mint not active")
+    ? "Minting is not active for this phase."
+    : message.includes("Not whitelisted")
+    ? "Your wallet is not on the whitelist."
+    : message.includes("network") || message.includes("chain")
+    ? "Network error. Please switch to Ritual Testnet."
+    : "Mint failed. Please try again.";
       setErrorMsg(short);
       setMintState("error");
     }
