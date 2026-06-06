@@ -98,14 +98,51 @@ export default function MintPage() {
     chainId: RITUAL_CHAIN_ID,
     query: { enabled: !!contractAddress },
   });
+  const { data: phase } = useReadContract({
+  address: contractAddress,
+  abi: VASTMINT_NFT_ABI,
+  functionName: "phase",
+  chainId: RITUAL_CHAIN_ID,
+  query: { enabled: !!contractAddress },
+});
 
+const { data: whitelistPrice } = useReadContract({
+  address: contractAddress,
+  abi: VASTMINT_NFT_ABI,
+  functionName: "whitelistPrice",
+  chainId: RITUAL_CHAIN_ID,
+  query: { enabled: !!contractAddress },
+});
+
+const { data: maxPerWallet } = useReadContract({
+  address: contractAddress,
+  abi: VASTMINT_NFT_ABI,
+  functionName: "maxPerWallet",
+  chainId: RITUAL_CHAIN_ID,
+  query: { enabled: !!contractAddress },
+});
+
+const { data: userMintCount } = useReadContract({
+  address: contractAddress,
+  abi: VASTMINT_NFT_ABI,
+  functionName: "mintCount",
+  args: [address ?? "0x0000000000000000000000000000000000000000"],
+  chainId: RITUAL_CHAIN_ID,
+  query: { enabled: !!contractAddress && !!address },
+});
   const minted = totalSupply ? Number(totalSupply) : 0;
   const isWrongNetwork = chainId !== RITUAL_CHAIN_ID;
   const progress = maxSupply > 0 ? Math.round((minted / maxSupply) * 100) : 0;
   const mintPriceLabel = formatMintPrice(mintPrice as bigint | undefined);
   const isMintPriceLoaded = mintPrice !== undefined;
   const isFree = (mintPrice as bigint | undefined) === 0n;
+const phaseNumber = Number(phase ?? 0);
+const phaseLabel =
+  phaseNumber === 1 ? "Whitelist" : phaseNumber === 2 ? "Public" : "Paused";
 
+const whitelistPriceLabel = formatMintPrice(whitelistPrice as bigint | undefined);
+const userMinted = userMintCount ? Number(userMintCount) : 0;
+const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
   const isSoldOut = maxSupply > 0 && minted >= maxSupply;
 
   const { isSuccess: txConfirmed, data: txReceipt } = useWaitForTransactionReceipt({
@@ -222,12 +259,18 @@ try {
       setMintState("pending");
 
       const tx = await writeContractAsync({
-        address: contractAddress,
-        abi: VASTMINT_NFT_ABI,
-        functionName: "mintNFT",
-        args: [address, tokenURI],
-        value: mintPrice as bigint,
-      });
+  address: contractAddress,
+  abi: VASTMINT_NFT_ABI,
+  functionName: phaseNumber === 1 ? "whitelistMint" : "mintNFT",
+  args:
+    phaseNumber === 1
+      ? [address, tokenURI, []]
+      : [address, tokenURI],
+  value:
+    phaseNumber === 1
+      ? (whitelistPrice as bigint)
+      : (mintPrice as bigint),
+});
 
       setTxHash(tx);
       setMintState("confirming");
@@ -411,9 +454,12 @@ try {
 
               <div className="mt-6 grid grid-cols-3 gap-3">
                 {[
-                  { label: "Total Supply", value: maxSupply.toLocaleString() },
-                  { label: "Minted", value: minted.toLocaleString() },
-                  { label: "Mint Price", value: mintPriceLabel },
+              { label: "Total Supply", value: maxSupply.toLocaleString() },
+               { label: "Minted", value: minted.toLocaleString() },
+               { label: "Phase", value: phaseLabel },
+               { label: "Mint Price", value: mintPriceLabel },
+               { label: "WL Price", value: whitelistPriceLabel },
+               { label: "Your Mints", value: `${userMinted}/${walletLimit || "∞"}` },
                 ].map(({ label, value }) => (
                   <div
                     key={label}
@@ -577,10 +623,11 @@ try {
                   <button
                     onClick={handleMint}
                     disabled={
-                      !isConnected ||
+                     !isConnected ||
                       isPending ||
                       isSoldOut ||
-                      (!isWrongNetwork && !isMintPriceLoaded)
+                      phaseNumber === 0 ||
+               (!isWrongNetwork && !isMintPriceLoaded)
                     }
                     className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
                       !isConnected || isSoldOut

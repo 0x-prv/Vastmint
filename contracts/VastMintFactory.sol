@@ -14,6 +14,8 @@ contract VastMintFactory {
         string image;
         uint256 maxSupply;
         uint256 mintPrice;
+        uint256 whitelistPrice;
+        uint256 maxPerWallet;
         uint256 createdAt;
         string slug;
     }
@@ -37,6 +39,9 @@ contract VastMintFactory {
         string memory _image,
         uint256 _maxSupply,
         uint256 _mintPrice,
+        uint256 _whitelistPrice,
+        uint256 _maxPerWallet,
+        bytes32 _whitelistRoot,
         string memory _slug
     ) external returns (address) {
         require(slugToAddress[_slug] == address(0), "Slug already taken");
@@ -52,6 +57,9 @@ contract VastMintFactory {
             _image,
             _maxSupply,
             _mintPrice,
+            _whitelistPrice,
+            _maxPerWallet,
+            _whitelistRoot,
             msg.sender
         );
 
@@ -64,6 +72,8 @@ contract VastMintFactory {
             image: _image,
             maxSupply: _maxSupply,
             mintPrice: _mintPrice,
+            whitelistPrice: _whitelistPrice,
+            maxPerWallet: _maxPerWallet,
             createdAt: block.timestamp,
             slug: _slug
         });

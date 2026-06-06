@@ -79,6 +79,8 @@ export default function LaunchpadCreatePage() {
   const [description, setDescription] = useState("");
   const [supply, setSupply] = useState("");
   const [price, setPrice] = useState("0");
+  const [whitelistPrice, setWhitelistPrice] = useState("0");
+  const [maxPerWallet, setMaxPerWallet] = useState("1");
 
   // Step 1 - Upload (single cover image — used by deploy logic)
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -230,20 +232,27 @@ export default function LaunchpadCreatePage() {
       setDeployState("pending");
       const slug = slugify(name);
       const mintPriceWei = price && Number(price) > 0 ? parseEther(price) : 0n;
+      const whitelistPriceWei =
+  whitelistPrice && Number(whitelistPrice) > 0
+    ? parseEther(whitelistPrice)
+    : 0n;
 
       const tx = await writeContractAsync({
         address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
         abi: VASTMINT_FACTORY_ABI,
         functionName: "createCollection",
-        args: [
-          name.trim(),
-          symbol.trim().toUpperCase(),
-          description.trim(),
-          imageUri,
-          BigInt(supply),
-          mintPriceWei,
-          slug,
-        ],
+      args: [
+  name.trim(),
+  symbol.trim().toUpperCase(),
+  description.trim(),
+  imageUri,
+  BigInt(supply),
+  mintPriceWei,
+  whitelistPriceWei,
+  BigInt(maxPerWallet || "1"),
+  "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // ← whitelistRoot (empty muna)
+  slug,
+],
       });
 
       setTxHash(tx);
@@ -401,6 +410,31 @@ export default function LaunchpadCreatePage() {
                   />
                   <p className="text-xs text-[#1a2e1a]/30 mt-1">Set 0 for free mint</p>
                 </div>
+                <div>
+  <label className="mb-2 block text-sm text-[#1a2e1a]/70">Whitelist Price</label>
+  <input
+    value={whitelistPrice}
+    onChange={(e) => setWhitelistPrice(e.target.value)}
+    className="w-full rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
+    placeholder="0"
+    type="number"
+    min="0"
+    step="0.001"
+  />
+  <p className="text-xs text-[#1a2e1a]/30 mt-1">Set 0 for free WL mint</p>
+</div>
+
+<div>
+  <label className="mb-2 block text-sm text-[#1a2e1a]/70">Max Per Wallet</label>
+  <input
+    value={maxPerWallet}
+    onChange={(e) => setMaxPerWallet(e.target.value.replace(/\D/g, ""))}
+    className="w-full rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
+    placeholder="1"
+    type="number"
+    min="1"
+  />
+</div>
               </div>
             </div>
           )}
@@ -611,6 +645,8 @@ export default function LaunchpadCreatePage() {
                   { label: "Symbol", value: symbol },
                   { label: "Supply", value: Number(supply).toLocaleString() },
                   { label: "Mint Price", value: price === "0" || !price ? "Free" : `${price} RITUAL` },
+                  { label: "Whitelist Price", value: whitelistPrice === "0" || !whitelistPrice ? "Free" : `${whitelistPrice} RITUAL` },
+                  { label: "Max Per Wallet", value: maxPerWallet || "1" },
                   { label: "Slug", value: slugify(name) },
                   { label: "Network", value: "Ritual Testnet" },
                   { label: "NFT Images", value: `${imageFiles.length} file${imageFiles.length > 1 ? "s" : ""} selected` },

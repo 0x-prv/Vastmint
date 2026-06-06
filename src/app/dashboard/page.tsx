@@ -43,6 +43,8 @@ type Collection = {
   image: string;
   maxSupply: bigint;
   mintPrice: bigint;
+  whitelistPrice: bigint;  // ← dagdag
+  maxPerWallet: bigint;    // ← dagdag
   createdAt: bigint;
   slug: string;
 };
@@ -76,7 +78,6 @@ function listingKey(contractAddress: string, tokenId: bigint) {
   return `${contractAddress.toLowerCase()}:${tokenId.toString()}`;
 }
 
-// Cache para hindi paulit-ulit mag-fetch
 const metadataCache = new Map<string, TokenMeta>();
 
 async function fetchTokenMeta(tokenURI: string): Promise<TokenMeta> {
@@ -96,7 +97,6 @@ async function fetchTokenMeta(tokenURI: string): Promise<TokenMeta> {
   }
 }
 
-// NFT Card component na nag-fe-fetch ng sariling tokenURI + metadata
 function OwnedNFTCard({
   nft,
   activeListing,
@@ -134,15 +134,9 @@ function OwnedNFTCard({
       <Link href={`/nft/${nft.contractAddress}/${nft.tokenId.toString()}`}>
         <div className="h-40 bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center relative">
           {displayImage ? (
-            <img
-              src={displayImage}
-              alt={displayName}
-              className="w-full h-full object-cover"
-            />
+            <img src={displayImage} alt={displayName} className="w-full h-full object-cover" />
           ) : (
-            <div className="text-[#7a9e7a] font-mono text-xs">
-              #{nft.tokenId.toString()}
-            </div>
+            <div className="text-[#7a9e7a] font-mono text-xs">#{nft.tokenId.toString()}</div>
           )}
           {activeListing && (
             <span className="absolute top-3 right-3 rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-2 py-0.5 text-xs font-bold text-[#1a4a2e]">
@@ -159,9 +153,7 @@ function OwnedNFTCard({
         {activeListing ? (
           <div className="mt-3 rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/70 px-4 py-2">
             <p className="text-[#7a9e7a] text-xs">Active Listing</p>
-            <p className="text-[#1a4a2e] font-black text-sm">
-              {formatEther(activeListing.price)} RITUAL
-            </p>
+            <p className="text-[#1a4a2e] font-black text-sm">{formatEther(activeListing.price)} RITUAL</p>
           </div>
         ) : (
           <button
@@ -171,6 +163,136 @@ function OwnedNFTCard({
             List for Sale
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CollectionManagerCard({
+  col,
+  writeContractAsync,
+  switchChainAsync,
+  isWrongNetwork,
+}: {
+  col: Collection;
+  writeContractAsync: ReturnType<typeof useWriteContract>["writeContractAsync"];
+  switchChainAsync: ReturnType<typeof useSwitchChain>["switchChainAsync"];
+  isWrongNetwork: boolean;
+}){
+
+  const [phaseLoading, setPhaseLoading] = useState(false);
+  const [phaseError, setPhaseError] = useState<string | null>(null);
+  const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
+
+  const { data: currentPhase, refetch: refetchPhase } = useReadContract({
+    address: col.contractAddress,
+    abi: VASTMINT_NFT_ABI,
+    functionName: "phase",
+    chainId: RITUAL_CHAIN_ID,
+  });
+
+  const phaseNumber = Number(currentPhase ?? 0);
+  const phaseLabel =
+    phaseNumber === 0 ? "Paused" : phaseNumber === 1 ? "Whitelist" : "Public";
+
+  const imageUrl = resolveIpfs(col.image);
+
+  async function handleSetPhase(newPhase: number) {
+    if (phaseLoading) return;
+    setPhaseError(null);
+    setPhaseLoading(true);
+    try {
+      if (isWrongNetwork) await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      if (!publicClient) throw new Error("No public client");
+      const hash = await writeContractAsync({
+        address: col.contractAddress,
+        abi: VASTMINT_NFT_ABI,
+        functionName: "setPhase",
+        args: [newPhase],
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      await refetchPhase();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed";
+      setPhaseError(
+        message.includes("rejected") || message.includes("denied")
+          ? "Transaction rejected."
+          : "Failed to set phase."
+      );
+    } finally {
+      setPhaseLoading(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-5 space-y-4">
+      {/* Top row */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+            {imageUrl ? (
+              <img src={imageUrl} alt={col.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-[#1a4a2e]/20" />
+            )}
+          </div>
+          <div>
+            <p className="text-[#1a2e1a] font-bold text-sm">{col.name}</p>
+            <p className="text-[#7a9e7a] text-xs mt-0.5">
+              {col.symbol} · {Number(col.maxSupply).toLocaleString()} supply
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-[#7a9e7a] text-xs">Phase</p>
+            <p className={`text-xs font-bold ${
+              phaseNumber === 0 ? "text-red-400" :
+              phaseNumber === 1 ? "text-yellow-400" :
+              "text-[#1a4a2e]"
+            }`}>
+              {phaseLabel}
+            </p>
+          </div>
+          <Link
+            href={`/collections/${col.slug}/mint`}
+            className="rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-3 py-2 text-xs font-bold text-[#f5f0e8]"
+          >
+            Mint Page
+          </Link>
+          <a
+            href={`${EXPLORER_URL}/address/${col.contractAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-3 py-2 text-xs text-[#4a6741]"
+          >
+            Explorer
+          </a>
+        </div>
+      </div>
+
+      {/* Phase Controls */}
+      <div className="border-t border-[#1a4a2e]/10 pt-3">
+        <p className="text-xs text-[#7a9e7a] mb-2 font-medium">Set Phase</p>
+        <div className="flex gap-2">
+          {[
+            { label: "Paused", value: 0, color: "border-red-800/40 text-red-400 hover:bg-red-900/10" },
+            { label: "Whitelist", value: 1, color: "border-yellow-700/40 text-yellow-500 hover:bg-yellow-900/10" },
+            { label: "Public", value: 2, color: "border-[#1a4a2e]/40 text-[#1a4a2e] hover:bg-[#1a4a2e]/10" },
+          ].map(({ label, value, color }) => (
+            <button
+              key={value}
+              onClick={() => handleSetPhase(value)}
+              disabled={phaseLoading || phaseNumber === value}
+              className={`flex-1 rounded-xl border px-3 py-2 text-xs font-bold transition ${color} ${
+                phaseNumber === value ? "opacity-30 cursor-not-allowed" : ""
+              } ${phaseLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {phaseLoading && phaseNumber !== value ? "..." : label}
+            </button>
+          ))}
+        </div>
+        {phaseError && <p className="text-red-400 text-xs mt-2">{phaseError}</p>}
       </div>
     </div>
   );
@@ -261,60 +383,60 @@ export default function DashboardPage() {
         const wallet = address.toLowerCase();
         let failedScans = 0;
 
-    const scanResults = await Promise.allSettled(
-     allCollections.map(async (collection) => {
-    const [incoming, outgoing] = await Promise.all([
-      getLogsInSafeChunks(publicClient, {
-        address: collection.contractAddress,
-        event: transferEvent,
-        args: { to: address },
-      }),
-      getLogsInSafeChunks(publicClient, {
-        address: collection.contractAddress,
-        event: transferEvent,
-        args: { from: address },
-      }),
-    ]);
+        const scanResults = await Promise.allSettled(
+          allCollections.map(async (collection) => {
+            const [incoming, outgoing] = await Promise.all([
+              getLogsInSafeChunks(publicClient, {
+                address: collection.contractAddress,
+                event: transferEvent,
+                args: { to: address },
+              }),
+              getLogsInSafeChunks(publicClient, {
+                address: collection.contractAddress,
+                event: transferEvent,
+                args: { from: address },
+              }),
+            ]);
 
-    const events = [...incoming, ...outgoing].sort((a, b) => {
-      if (a.blockNumber !== b.blockNumber)
-        return a.blockNumber < b.blockNumber ? -1 : 1;
-      return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
-    });
+            const events = [...incoming, ...outgoing].sort((a, b) => {
+              if (a.blockNumber !== b.blockNumber)
+                return a.blockNumber < b.blockNumber ? -1 : 1;
+              return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
+            });
 
-    const ownedSet = new Set<string>();
-    for (const event of events) {
-      const from = typeof event.args.from === "string"
-        ? event.args.from.toLowerCase() : undefined;
-      const to = typeof event.args.to === "string"
-        ? event.args.to.toLowerCase() : undefined;
-      const tokenId = event.args.tokenId;
-      if (typeof tokenId !== "bigint") continue;
-      if (from === wallet) ownedSet.delete(tokenId.toString());
-      if (to === wallet) ownedSet.add(tokenId.toString());
-    }
+            const ownedSet = new Set<string>();
+            for (const event of events) {
+              const from = typeof event.args.from === "string"
+                ? event.args.from.toLowerCase() : undefined;
+              const to = typeof event.args.to === "string"
+                ? event.args.to.toLowerCase() : undefined;
+              const tokenId = event.args.tokenId;
+              if (typeof tokenId !== "bigint") continue;
+              if (from === wallet) ownedSet.delete(tokenId.toString());
+              if (to === wallet) ownedSet.add(tokenId.toString());
+            }
 
-    return { collection, ownedSet };
-  })
-);
+            return { collection, ownedSet };
+          })
+        );
 
-for (const result of scanResults) {
-  if (result.status === "fulfilled") {
-    const { collection, ownedSet } = result.value;
-    for (const tokenId of ownedSet) {
-      nextOwned.push({
-        contractAddress: collection.contractAddress,
-        tokenId: BigInt(tokenId),
-        collection,
-      });
-    }
-  } else {
-    failedScans += 1;
-    console.error("Unable to scan collection", result.reason);
-  }
-}
-          
-      nextOwned.sort((a, b) => {
+        for (const result of scanResults) {
+          if (result.status === "fulfilled") {
+            const { collection, ownedSet } = result.value;
+            for (const tokenId of ownedSet) {
+              nextOwned.push({
+                contractAddress: collection.contractAddress,
+                tokenId: BigInt(tokenId),
+                collection,
+              });
+            }
+          } else {
+            failedScans += 1;
+            console.error("Unable to scan collection", result.reason);
+          }
+        }
+
+        nextOwned.sort((a, b) => {
           const cc = a.collection.name.localeCompare(b.collection.name);
           if (cc !== 0) return cc;
           return a.tokenId < b.tokenId ? -1 : a.tokenId > b.tokenId ? 1 : 0;
@@ -394,27 +516,22 @@ for (const result of scanResults) {
   }
 
   async function handleCancel(listingId: bigint) {
-  try {
-    if (!publicClient) return;
-
-    if (chainId !== RITUAL_CHAIN_ID) {
-      await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+    try {
+      if (!publicClient) return;
+      if (chainId !== RITUAL_CHAIN_ID) await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      const hash = await writeContractAsync({
+        address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
+        abi: VASTMINT_MARKETPLACE_ABI,
+        functionName: "cancelListing",
+        args: [listingId],
+        chainId: RITUAL_CHAIN_ID,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      await refetchListings();
+    } catch (err) {
+      console.error(err);
     }
-
-    const hash = await writeContractAsync({
-      address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
-      abi: VASTMINT_MARKETPLACE_ABI,
-      functionName: "cancelListing",
-      args: [listingId],
-      chainId: RITUAL_CHAIN_ID,
-    });
-
-    await publicClient.waitForTransactionReceipt({ hash });
-    await refetchListings();
-  } catch (err) {
-    console.error(err);
   }
-}
 
   if (!isConnected) {
     return (
@@ -427,9 +544,7 @@ for (const result of scanResults) {
             </svg>
           </div>
           <h2 className="text-2xl font-black">Connect Your Wallet</h2>
-          <p className="text-[#4a6741] text-sm mt-2">
-            Connect your wallet to view your dashboard.
-          </p>
+          <p className="text-[#4a6741] text-sm mt-2">Connect your wallet to view your dashboard.</p>
         </div>
       </main>
     );
@@ -497,15 +612,11 @@ for (const result of scanResults) {
             )}
             {ownershipLoading ? (
               <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-12 text-center">
-                <p className="text-[#4a6741] text-sm">
-                  Scanning owned NFTs across factory collections…
-                </p>
+                <p className="text-[#4a6741] text-sm">Scanning owned NFTs across factory collections…</p>
               </div>
             ) : ownedNfts.length === 0 ? (
               <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-12 text-center">
-                <p className="text-[#4a6741] text-sm">
-                  You don&apos;t own any VastMint NFTs yet.
-                </p>
+                <p className="text-[#4a6741] text-sm">You don&apos;t own any VastMint NFTs yet.</p>
                 <Link
                   href="/collections"
                   className="mt-4 inline-flex rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-5 py-3 text-sm font-bold text-[#f5f0e8]"
@@ -687,55 +798,15 @@ for (const result of scanResults) {
               </div>
             ) : (
               <div className="space-y-3">
-                {(myCollections as Collection[]).map((col) => {
-                  const imageUrl = resolveIpfs(col.image);
-                  return (
-                    <div
-                      key={col.contractAddress}
-                      className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] p-5 flex items-center justify-between gap-4 flex-wrap"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                          {imageUrl ? (
-                            <img src={imageUrl} alt={col.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-[#1a4a2e]/20" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-[#1a2e1a] font-bold text-sm">{col.name}</p>
-                          <p className="text-[#7a9e7a] text-xs mt-0.5">
-                            {col.symbol} · {Number(col.maxSupply).toLocaleString()} supply
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="text-[#7a9e7a] text-xs">Price</p>
-                          <p className="text-[#1a4a2e] font-bold text-sm">
-                            {col.mintPrice === 0n ? "Free" : `${formatEther(col.mintPrice)} RITUAL`}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/collections/${col.slug}/mint`}
-                            className="rounded-xl bg-[#1a4a2e] hover:bg-[#143d24] transition px-3 py-2 text-xs font-bold text-[#f5f0e8]"
-                          >
-                            Mint Page
-                          </Link>
-                          <a
-                            href={`${EXPLORER_URL}/address/${col.contractAddress}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded-xl border border-[#1a4a2e]/15 hover:bg-[#1a4a2e]/10 transition px-3 py-2 text-xs text-[#4a6741] hover:text-[#1a2e1a]"
-                          >
-                            Explorer
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {(myCollections as Collection[]).map((col) => (
+                  <CollectionManagerCard
+                    key={col.contractAddress}
+                    col={col}
+                    writeContractAsync={writeContractAsync}
+                    switchChainAsync={switchChainAsync}
+                    isWrongNetwork={isWrongNetwork}
+                  />
+                ))}
               </div>
             )}
           </div>
