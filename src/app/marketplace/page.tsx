@@ -284,12 +284,17 @@ function CancelButton({
   onSuccess: () => void;
 }) {
   const { writeContractAsync } = useWriteContract();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain(); 
   const publicClient = usePublicClient({ chainId: RITUAL_CHAIN_ID });
   const [cancelling, setCancelling] = useState(false);
 
   async function handleCancel() {
     setCancelling(true);
     try {
+    if (chainId !== RITUAL_CHAIN_ID) {
+    await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+    }
       const tx = await writeContractAsync({
         address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
         abi: VASTMINT_MARKETPLACE_ABI,
@@ -384,6 +389,7 @@ function MarketplacePage() {
 
   const HIDDEN_COLLECTIONS = [
   "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
+  "0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067",
 ].map(a => a.toLowerCase());
 const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({

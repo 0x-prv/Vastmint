@@ -63,6 +63,7 @@ export default function HomePage() {
 
   const HIDDEN_COLLECTIONS = [
   "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
+  "0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067",
 ].map(a => a.toLowerCase());
 
 const allCollections = [...((collections as Collection[] | undefined) ?? [])].filter(
