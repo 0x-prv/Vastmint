@@ -613,7 +613,13 @@ try {
                       </span>
                     </div>
                   </div>
-
+{walletLimit > 0 && userMinted >= walletLimit && (
+  <div className="mb-4 rounded-xl border border-yellow-700/40 bg-yellow-900/15 px-4 py-3">
+    <p className="text-yellow-500 text-sm">
+      You have reached the maximum mint limit of {walletLimit} per wallet.
+    </p>
+  </div>
+)}
                   {displayMintState === "error" && errorMsg && (
                     <div className="mb-4 rounded-xl border border-red-800/40 bg-red-900/15 px-4 py-3">
                       <p className="text-red-400 text-sm">{errorMsg}</p>
@@ -621,14 +627,16 @@ try {
                   )}
 
                   <button
-                    onClick={handleMint}
+                   onClick={handleMint}
                     disabled={
-                     !isConnected ||
-                      isPending ||
-                      isSoldOut ||
-                      phaseNumber === 0 ||
-               (!isWrongNetwork && !isMintPriceLoaded)
-                    }
+                    !isConnected ||
+                     isPending ||
+                     isSoldOut ||
+                     phaseNumber === 0 ||
+                    (!isWrongNetwork && !isMintPriceLoaded) ||
+                      (walletLimit > 0 && userMinted >= walletLimit)
+}
+                    
                     className={`w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
                       !isConnected || isSoldOut
                         ? "bg-[#e0dbd0] text-[#7a9e7a] cursor-not-allowed border border-[#1a4a2e]/15"
@@ -673,10 +681,12 @@ try {
   : !isMintPriceLoaded
   ? "Loading Mint Price..."
   : phaseNumber === 0
-  ? "Mint Paused"
-  : phaseNumber === 1
-  ? "Whitelist Mint"
-  : "Public Mint"}
+? "Mint Paused"
+: walletLimit > 0 && userMinted >= walletLimit
+? "Wallet Limit Reached"
+: phaseNumber === 1
+? "Whitelist Mint"
+: "Public Mint"}
                 
                 </button>
 
