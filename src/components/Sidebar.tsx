@@ -74,8 +74,7 @@ const NAV_ITEMS = [
 export default function Sidebar({
   onClose,
   collapsed = false,
-  onToggle,
-}: {
+  }: {
   onClose?: () => void;
   collapsed?: boolean;
   onToggle?: () => void;
