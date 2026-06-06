@@ -29,7 +29,7 @@ import {
 } from "@/lib/blockchain/listings";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
-const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 const filters = ["All", "Cheapest", "Most Recent"];
 
 type BuyState =

@@ -28,7 +28,7 @@ import {
 import { getLogsInSafeChunks } from "@/lib/blockchain/logs";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
-const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 const tabs = ["My NFTs", "My Listings", "My Collections"];
 const transferEvent = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"

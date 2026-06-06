@@ -26,7 +26,7 @@ import {
 } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
-const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 
 function resolveIpfs(uri: string): string {
   if (!uri) return "";

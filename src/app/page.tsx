@@ -33,12 +33,12 @@ type Listing = {
 };
 
 const FALLBACK_IMAGE =
-  "https://ipfs.io/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4";
+  "https://gateway.pinata.cloud/ipfs/bafybeighztad3kvdoylfubv2rn6vjpp5piwnjzxrtv7mx7ur67pnvx4yd4";
 
 function resolveImage(image: string) {
   if (!image) return FALLBACK_IMAGE;
   if (image.startsWith("ipfs://"))
-    return `https://ipfs.io/ipfs/${image.replace("ipfs://", "")}`;
+    return `https://gateway.pinata.cloud/ipfs/${image.replace("ipfs://", "")}`;
   return image;
 }
 

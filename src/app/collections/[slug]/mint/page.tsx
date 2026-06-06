@@ -51,7 +51,7 @@ function formatMintPrice(price?: bigint) {
 function resolveImage(image?: string) {
   if (!image) return null;
   if (image.startsWith("ipfs://"))
-    return `https://ipfs.io/ipfs/${image.replace("ipfs://", "")}`;
+    return `https://gateway.pinata.cloud/ipfs/${image.replace("ipfs://", "")}`;
   return image;
 }
 
@@ -206,7 +206,7 @@ try {
   if (!csvToken) {
     const manifestCid = localStorage.getItem(`vastmint_manifest_${slug}`);
     if (manifestCid) {
-      const manifestRes = await fetch(`https://ipfs.io/ipfs/${manifestCid}`);
+      const manifestRes = await fetch(`https://gateway.pinata.cloud/ipfs/${manifestCid}`);
       if (manifestRes.ok) {
         const manifest = await manifestRes.json();
         csvToken = manifest?.tokens?.[nextTokenId] ?? null;
@@ -661,19 +661,24 @@ try {
                       </svg>
                     )}
                     {!isConnected
-                      ? "Connect Wallet to Mint"
-                      : displayMintState === "switching"
-                      ? "Switching Network..."
-                      : displayMintState === "pending"
-                      ? "Confirm in Wallet..."
-                      : displayMintState === "confirming"
-                      ? "Confirming Transaction..."
-                      : isWrongNetwork
-                      ? "Switch to Ritual Testnet"
-                      : !isMintPriceLoaded
-                      ? "Loading Mint Price..."
-                      : "Mint NFT"}
-                  </button>
+  ? "Connect Wallet to Mint"
+  : displayMintState === "switching"
+  ? "Switching Network..."
+  : displayMintState === "pending"
+  ? "Confirm in Wallet..."
+  : displayMintState === "confirming"
+  ? "Confirming Transaction..."
+  : isWrongNetwork
+  ? "Switch to Ritual Testnet"
+  : !isMintPriceLoaded
+  ? "Loading Mint Price..."
+  : phaseNumber === 0
+  ? "Mint Paused"
+  : phaseNumber === 1
+  ? "Whitelist Mint"
+  : "Public Mint"}
+                
+                </button>
 
                   <p className="text-center text-[#7a9e7a] text-xs mt-4">
                     Minting on Ritual Testnet · Chain ID 1979

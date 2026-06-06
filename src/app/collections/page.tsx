@@ -44,7 +44,7 @@ export default function CollectionsPage() {
 
           {visibleCollections.map((col) => {
             const imageUrl = col.image?.startsWith("ipfs://")
-              ? `https://ipfs.io/ipfs/${col.image.replace("ipfs://", "")}`
+              ? `https://gateway.pinata.cloud/ipfs/${col.image.replace("ipfs://", "")}`
               : col.image;
             const isFree = col.mintPrice === 0n;
 
