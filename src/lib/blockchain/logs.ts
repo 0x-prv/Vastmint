@@ -27,17 +27,15 @@ type SafeGetLogsParameters = {
 // I-update mo ang values kapag alam na ang exact deployment blocks.
 
 const CONTRACT_DEPLOYMENT_BLOCKS: Record<string, bigint | undefined> = {
-  [VASTMINT_NFT_ADDRESS.toLowerCase()]: 27_000_000n,
-  [VASTMINT_FACTORY_ADDRESS.toLowerCase()]: 27_000_000n,
+  [VASTMINT_NFT_ADDRESS.toLowerCase()]: 29_113_411n,
+  [VASTMINT_FACTORY_ADDRESS.toLowerCase()]: 29_113_411n,
 };
 
 function getScanStartBlock(
   contractAddress: `0x${string}`,
 ): bigint {
   const configured = CONTRACT_DEPLOYMENT_BLOCKS[contractAddress.toLowerCase()];
-  // Kung may configured deployment block — gamitin yun
-  // Kung wala — mula block 0 para hindi mawala ang lumang NFTs
-  return configured ?? 27_000_000n;
+  return configured ?? 29_113_411n;
 }
 
 export async function getLogsInSafeChunks(
