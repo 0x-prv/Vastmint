@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import Web3Provider from "@/providers/web3-provider";
