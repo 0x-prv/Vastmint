@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 
-export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+export default function Navbar({ collapsed = false }: { collapsed?: boolean }) {
+
+const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
 
@@ -21,8 +22,7 @@ export default function Navbar() {
   return (
     <>
       {/* Top Bar */}
-      <header className="fixed top-0 left-0 md:left-64 right-0 z-40 h-16 border-b border-[#1a4a2e]/10 bg-[#f5f0e8]/80 backdrop-blur-xl flex items-center px-4 sm:px-6 gap-4">
-        {/* Mobile hamburger */}
+<header className={`fixed top-0 left-0 ${collapsed ? "md:left-20" : "md:left-64"} right-0 z-40 h-16 border-b border-[#1a4a2e]/10 bg-[#f5f0e8]/80 backdrop-blur-xl flex items-center px-4 sm:px-6 gap-4 transition-all duration-300`}>
         <button
           onClick={() => setMobileOpen(true)}
           className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl border border-[#1a4a2e]/20 text-[#4a6741] hover:text-[#1a2e1a] transition flex-shrink-0"

@@ -458,17 +458,17 @@ export default function LaunchpadCreatePage() {
                   </div>
                 )}
 
-                {/* Supply mismatch warning */}
-                {imageFiles.length > 0 && Number(supply) > 0 && imageFiles.length !== Number(supply) && (
-                  <div className="rounded-xl border border-yellow-700/30 bg-yellow-900/10 px-4 py-3 mt-3">
-                    <p className="text-yellow-500 text-xs">
-                      ⚠️ {imageFiles.length} image{imageFiles.length > 1 ? "s" : ""} selected pero ang max supply ay {supply}.
-                      {imageFiles.length < Number(supply)
-                        ? ` Kulang ng ${Number(supply) - imageFiles.length}.`
-                        : ` Sobra ng ${imageFiles.length - Number(supply)}.`}
-                    </p>
-                  </div>
-                )}
+               {/* Supply mismatch warning */}
+{imageFiles.length > 0 && Number(supply) > 0 && imageFiles.length !== Number(supply) && (
+  <div className="rounded-xl border border-yellow-700/30 bg-yellow-900/10 px-4 py-3 mt-3">
+    <p className="text-yellow-500 text-xs">
+      ⚠️ {imageFiles.length} image{imageFiles.length > 1 ? "s" : ""} selected but maximum supply is {supply}.
+      {imageFiles.length < Number(supply)
+        ? ` Need ${Number(supply) - imageFiles.length} more images.`
+        : ` ${imageFiles.length - Number(supply)} extra images selected.`}
+    </p>
+  </div>
+)}
 
                 {/* IPFS confirmation */}
                 {imageCid && (
@@ -529,7 +529,7 @@ export default function LaunchpadCreatePage() {
                 {tokenMetadata.length > 0 && imageFiles.length > 0 && tokenMetadata.length !== imageFiles.length && (
                   <div className="rounded-xl border border-yellow-700/30 bg-yellow-900/10 px-4 py-3 mt-3">
                     <p className="text-yellow-500 text-xs">
-                      ⚠️ {tokenMetadata.length} CSV rows pero {imageFiles.length} images. Dapat mag-match ang bilang.
+                      ⚠️ Metadata count does not match image count. CSV contains {tokenMetadata.length} rows while {imageFiles.length} images were uploaded.
                     </p>
                   </div>
                 )}

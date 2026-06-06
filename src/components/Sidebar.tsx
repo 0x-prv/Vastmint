@@ -71,8 +71,16 @@ const NAV_ITEMS = [
     ),
   },
 ];
+export default function Sidebar({
+  onClose,
+  collapsed = false,
+  onToggle,
+}: {
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
 
-export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -136,8 +144,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <aside className="flex flex-col h-full w-64 bg-[#e0dbd0] border-r border-[#1a4a2e]/10">
-      {/* Logo */}
+<aside className={`flex flex-col h-full bg-[#e0dbd0] border-r border-[#1a4a2e]/10 transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}>      {/* Logo */}
       <div className="px-5 py-5 border-b border-[#1a4a2e]/10">
         <Link href="/" className="flex items-center gap-3" onClick={onClose}>
           <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#e0dbd0] border border-[#1a4a2e]/30 flex-shrink-0">
@@ -150,18 +157,22 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               priority
             />
           </div>
-          <div>
-            <p className="text-sm font-black tracking-tight">VastMint</p>
-            <p className="text-[10px] text-[#7a9e7a]">Ritual Ecosystem</p>
-          </div>
+          {!collapsed && (
+  <div>
+    <p className="text-sm font-black tracking-tight">VastMint</p>
+    <p className="text-[10px] text-[#7a9e7a]">Live on Ritual Testnet</p>
+  </div>
+)}
         </Link>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-[10px] font-bold text-[#7a9e7a] uppercase tracking-widest px-3 mb-3">
-          Navigation
-        </p>
+        {!collapsed && (
+  <p className="text-[10px] font-bold text-[#7a9e7a] uppercase tracking-widest px-3 mb-3">
+    Navigation
+  </p>
+)}
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -176,10 +187,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               }`}
             >
               <span className={isActive ? "text-[#1a4a2e]" : ""}>{item.icon}</span>
-              {item.label}
-              {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1a4a2e]" />
-              )}
+              {!collapsed && item.label}
+            {isActive && !collapsed && (
+  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1a4a2e]" />
+)}
             </Link>
           );
         })}
@@ -202,7 +213,16 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Wallet Section */}
       <div className="px-3 pb-4 pt-3 border-t border-[#1a4a2e]/10 space-y-3">
-        {isConnected && address ? (
+         {collapsed ? (
+     <div className="flex justify-center">
+      <ConnectButton
+        showBalance={false}
+        chainStatus="none"
+        accountStatus="avatar"
+      />
+    </div>
+  ) : isConnected && address ? (
+          
           <>
             {/* Portfolio summary */}
             <div className="rounded-xl bg-[#ede8df] border border-[#1a4a2e]/15 p-3 space-y-2">

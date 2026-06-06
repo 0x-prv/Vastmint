@@ -87,7 +87,7 @@ const allCollections = [...((collections as Collection[] | undefined) ?? [])].fi
       </div>
 
       {/* HERO */}
-      <section className="relative px-6 pt-36 pb-20">
+      <section className="relative px-6 pt-10 pb-20">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#1a4a2e]/30 bg-[#1a4a2e]/10 px-4 py-1.5 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1a4a2e] animate-pulse" />
@@ -102,7 +102,7 @@ const allCollections = [...((collections as Collection[] | undefined) ?? [])].fi
 
           <p className="text-[#4a6741] mt-6 text-lg max-w-2xl leading-relaxed">
             VastMint is currently live on Ritual Testnet. Mint, list, and explore
-            NFTs inside the Ritual ecosystem — for free.
+            NFTs inside the Ritual ecosystem.
           </p>
 
           <div className="flex flex-wrap gap-4 mt-8">

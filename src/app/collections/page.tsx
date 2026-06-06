@@ -101,8 +101,11 @@ export default function CollectionsPage() {
                       <div className="rounded-xl bg-[#e0dbd0]/30 border border-[#1a4a2e]/15 px-4 py-3 text-center">
                         <p className="text-[#7a9e7a] text-xs">Deployed</p>
                         <p className="text-[#1a2e1a] font-black mt-0.5 text-xs">
-                          {new Date(Number(col.createdAt) * 1000).toLocaleDateString()}
-                        </p>
+                      {Number(col.createdAt) > 1000000000 &&
+                      Number(col.createdAt) < 9999999999
+                  ? new Date(Number(col.createdAt) * 1000).toLocaleDateString()
+               : "Legacy"}
+                   </p>
                       </div>
                     </div>
 
