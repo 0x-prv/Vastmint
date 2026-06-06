@@ -249,9 +249,33 @@ export default function LaunchpadCreatePage() {
       setTxHash(tx);
       setDeployedSlug(slug);
       setDeployState("confirming");
+
+      // Upload CSV metadata manifest to IPFS para available sa lahat
       if (tokenMetadata.length > 0) {
-  localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(tokenMetadata));
-    }
+        localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(tokenMetadata));
+        
+        // Upload manifest to Pinata
+        try {
+          const manifestRes = await fetch("/api/pinata/json", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              pinataContent: { tokens: tokenMetadata },
+              pinataMetadata: { name: `${slug}-metadata-manifest` },
+            }),
+          });
+          if (manifestRes.ok) {
+            const manifestData = await manifestRes.json();
+            const manifestCid = manifestData.IpfsHash;
+            if (manifestCid) {
+              localStorage.setItem(`vastmint_manifest_${slug}`, manifestCid);
+            }
+          }
+        } catch {
+          // Manifest upload failed — localStorage fallback pa rin
+          console.error("Manifest upload failed");
+        }
+      }
 
     } catch (err: unknown) {
       console.error(err);

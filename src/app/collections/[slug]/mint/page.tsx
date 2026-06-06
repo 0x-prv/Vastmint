@@ -155,12 +155,34 @@ export default function MintPage() {
       setMintState("uploading");
 
       const nextTokenId = minted;
+// Check localStorage muna, then IPFS manifest fallback
+let csvToken = null;
+try {
+  // Try localStorage first (creator's browser)
+  const storedMeta = localStorage.getItem(`vastmint_metadata_${slug}`);
+  if (storedMeta) {
+    const csvMetadata = JSON.parse(storedMeta);
+    csvToken = csvMetadata?.[nextTokenId] ?? null;
+  }
 
-      // Check localStorage for CSV metadata
-      const storedMeta = localStorage.getItem(`vastmint_metadata_${slug}`);
-      const csvMetadata = storedMeta ? JSON.parse(storedMeta) : null;
-      const csvToken = csvMetadata?.[nextTokenId] ?? null;
-
+  // Kung wala sa localStorage, try IPFS manifest
+  if (!csvToken) {
+    const manifestCid = localStorage.getItem(`vastmint_manifest_${slug}`);
+    if (manifestCid) {
+      const manifestRes = await fetch(`https://ipfs.io/ipfs/${manifestCid}`);
+      if (manifestRes.ok) {
+        const manifest = await manifestRes.json();
+        csvToken = manifest?.tokens?.[nextTokenId] ?? null;
+        // I-cache sa localStorage para sa susunod
+        if (manifest?.tokens) {
+          localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(manifest.tokens));
+        }
+      }
+    }
+  }
+} catch {
+  // Walang metadata — okay lang, magga-generate ng default
+}
       // Build metadata — no random/placeholder traits
       const metadata = {
         name: csvToken?.name ?? `${collection.name} #${nextTokenId}`,
