@@ -25,7 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     collapsed ? "md:ml-20" : "md:ml-64"
   }`}
 >        <Navbar collapsed={collapsed} />
-        <main className="flex-1 pt-16">{children}</main>
+        <div className="flex-1 pt-16">{children}</div>
       </div>
     </>
   );
