@@ -2,7 +2,7 @@
 
 import { getLogsInSafeChunks } from "@/lib/blockchain/logs";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import {
   useReadContract,
@@ -81,6 +81,28 @@ interface ActivityItem {
   to: string;
   time: string;
   txHash: string;
+}
+
+interface MarketplaceListing {
+  listingId: bigint;
+  seller: `0x${string}`;
+  nftContract: `0x${string}`;
+  tokenId: bigint;
+  price: bigint;
+  active: boolean;
+  createdAt: bigint;
+}
+
+function normalizeMarketplaceListing(listing: unknown): MarketplaceListing | null {
+  if (!listing) return null;
+
+  if (Array.isArray(listing)) {
+    const [listingId, seller, nftContract, tokenId, price, active, createdAt] =
+      listing;
+    return { listingId, seller, nftContract, tokenId, price, active, createdAt };
+  }
+
+  return listing as MarketplaceListing;
 }
 
 export default function NFTDetailPage() {
@@ -193,18 +215,63 @@ export default function NFTDetailPage() {
     query: { enabled: Boolean(contractAddress) && tokenId !== null },
   });
 
+  const hasValidListingParams = Boolean(contractAddress) && tokenId !== null;
+
+  const {
+    data: directListingId,
+    isError: directListingIdError,
+  } = useReadContract({
+    address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
+    abi: VASTMINT_MARKETPLACE_ABI,
+    functionName: "tokenToListingId",
+    args: [contractAddress as `0x${string}`, tokenId ?? 0n],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: hasValidListingParams },
+  });
+
+  const shouldReadDirectListing =
+    hasValidListingParams && typeof directListingId === "bigint" && directListingId > 0n;
+
+  const {
+    data: directListingData,
+    isError: directListingError,
+  } = useReadContract({
+    address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
+    abi: VASTMINT_MARKETPLACE_ABI,
+    functionName: "listings",
+    args: [directListingId ?? 0n],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: shouldReadDirectListing },
+  });
+
+  const shouldUseListingFallback =
+    hasValidListingParams &&
+    (directListingIdError || directListingId === 0n || directListingError);
+
   const { data: contractListings } = useReadContract({
     address: VASTMINT_MARKETPLACE_ADDRESS as `0x${string}`,
     abi: VASTMINT_MARKETPLACE_ABI,
     functionName: "getListingsByContract",
     args: [contractAddress as `0x${string}`],
     chainId: RITUAL_CHAIN_ID,
-    query: { enabled: Boolean(contractAddress) },
+    query: { enabled: shouldUseListingFallback },
   });
 
-  const activeListing = contractListings?.find(
+  const directActiveListing = useMemo(() => {
+    const listing = normalizeMarketplaceListing(directListingData);
+    if (!listing || !listing.active || tokenId === null) return undefined;
+    if (listing.tokenId !== tokenId) return undefined;
+    if (listing.nftContract.toLowerCase() !== contractAddress?.toLowerCase()) {
+      return undefined;
+    }
+    return listing;
+  }, [contractAddress, directListingData, tokenId]);
+
+  const fallbackActiveListing = contractListings?.find(
     (l) => l.active && l.tokenId === (tokenId ?? 0n)
   );
+
+  const activeListing = directActiveListing ?? fallbackActiveListing;
 
   // ✅ Fixed — kasama na ang attributes sa fetch
   useEffect(() => {
