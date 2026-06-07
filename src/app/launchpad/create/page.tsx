@@ -182,6 +182,26 @@ async function handleDeploy() {
     setErrorMsg(null);
     setDeployState("uploading");
 
+    const totalTokens = Number(supply);
+
+if (!Number.isInteger(totalTokens) || totalTokens <= 0) {
+  setErrorMsg("Invalid max supply.");
+  setDeployState("error");
+  return;
+}
+
+if (imageFiles.length !== totalTokens) {
+  setErrorMsg(`Upload exactly ${totalTokens} NFT image${totalTokens > 1 ? "s" : ""}. You selected ${imageFiles.length}.`);
+  setDeployState("error");
+  return;
+}
+
+if (tokenMetadata.length > 0 && tokenMetadata.length !== totalTokens) {
+  setErrorMsg(`CSV metadata must match max supply. Expected ${totalTokens} rows, got ${tokenMetadata.length}.`);
+  setDeployState("error");
+  return;
+}
+
     try {
       // ── Step 1: Upload cover image (para sa collection thumbnail) ──────────
       let coverCid = imageCid;
@@ -211,10 +231,10 @@ async function handleDeploy() {
       // ── Step 3: Generate and upload metadata folder ────────────────────────
       // Each token gets a JSON file: 0.json, 1.json, 2.json, etc.
       const metadataFormData = new FormData();
-      const totalTokens = Number(supply);
+      
 
       for (let i = 0; i < totalTokens; i++) {
-        const imgCid = imageCids[i] ?? imageCids[0]; // fallback to first image
+        const imgCid = imageCids[i];
         const csvToken = tokenMetadata[i] ?? null;
 
         const metadata = {

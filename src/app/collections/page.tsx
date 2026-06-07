@@ -7,11 +7,6 @@ import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
-const HIDDEN_COLLECTIONS = [
-  "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
-  "0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067",
-].map(a => a.toLowerCase());
-
 export default function CollectionsPage() {
   const { data: factoryCollections, isLoading: factoryLoading } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
@@ -20,9 +15,7 @@ export default function CollectionsPage() {
     chainId: RITUAL_CHAIN_ID,
   });
 
-  const visibleCollections = (factoryCollections ?? []).filter(
-    col => !HIDDEN_COLLECTIONS.includes(col.contractAddress.toLowerCase())
-  );
+const visibleCollections = factoryCollections ?? [];
 
   return (
     <main className="min-h-screen bg-[#f5f0e8] text-[#1a2e1a] px-4 sm:px-6 pt-6 pb-24">

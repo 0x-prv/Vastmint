@@ -138,7 +138,7 @@ export default function Sidebar({
     try {
       await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
   }
 

@@ -1,33 +1,117 @@
 const PINATA_FILE_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
+const MAX_FILES = 100;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_METADATA_LENGTH = 1000;
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+function getClientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) return true;
+
+  entry.count++;
+  return false;
+}
+
 export async function POST(request: Request) {
   const jwt = process.env.PINATA_JWT;
+
   if (!jwt) {
     return Response.json({ error: "Pinata JWT is not configured." }, { status: 500 });
+  }
+
+  const ip = getClientIp(request);
+
+  if (isRateLimited(ip)) {
+    return Response.json(
+      { error: "Too many folder uploads. Please wait and try again." },
+      { status: 429 }
+    );
   }
 
   try {
     const formData = await request.formData();
     const pinataMetadata = formData.get("pinataMetadata");
 
-    // Build a new FormData to forward to Pinata
-    const pinataData = new FormData();
+    if (typeof pinataMetadata === "string" && pinataMetadata.length > MAX_METADATA_LENGTH) {
+      return Response.json({ error: "Metadata too large." }, { status: 400 });
+    }
 
-    // Get all files from the request
+    const pinataData = new FormData();
     const entries = Array.from(formData.entries());
+
+    let fileCount = 0;
+    let totalSize = 0;
+
     for (const [key, value] of entries) {
       if (key === "pinataMetadata") continue;
+
       if (value instanceof File) {
-        // Preserve the relative path for folder structure
+        fileCount++;
+        totalSize += value.size;
+
+        if (fileCount > MAX_FILES) {
+          return Response.json(
+            { error: `Too many files. Maximum is ${MAX_FILES} files per folder upload.` },
+            { status: 400 }
+          );
+        }
+
+        if (value.size > MAX_FILE_SIZE_BYTES) {
+          return Response.json(
+            { error: `Each file must be 10MB or smaller.` },
+            { status: 400 }
+          );
+        }
+
+        if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+          return Response.json(
+            { error: `Total upload size must be 100MB or smaller.` },
+            { status: 400 }
+          );
+        }
+
+        const allowedTypes = ["image/", "application/json", "text/plain"];
+        const isAllowed = allowedTypes.some((type) => value.type.startsWith(type));
+
+        if (!isAllowed) {
+          return Response.json(
+            { error: "Only images, JSON, or text metadata files are allowed." },
+            { status: 400 }
+          );
+        }
+
         pinataData.append("file", value, value.name);
       }
+    }
+
+    if (fileCount === 0) {
+      return Response.json({ error: "No files found for folder upload." }, { status: 400 });
     }
 
     if (typeof pinataMetadata === "string") {
       pinataData.append("pinataMetadata", pinataMetadata);
     }
 
-    // Enable folder/directory upload via pinataOptions
     pinataData.append(
       "pinataOptions",
       JSON.stringify({ wrapWithDirectory: true })
@@ -40,6 +124,7 @@ export async function POST(request: Request) {
     });
 
     const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
       return Response.json(
         { error: "Pinata folder upload failed.", details: data },

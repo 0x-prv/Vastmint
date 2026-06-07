@@ -60,19 +60,9 @@ export default function HomePage() {
     functionName: "getActiveListings",
     chainId: RITUAL_CHAIN_ID,
   });
+const allCollections = [...((collections as Collection[] | undefined) ?? [])];
 
-  const HIDDEN_COLLECTIONS = [
-  "0x19Ddd5Ad30114BB7728D546E71Af6dc747FE89c9",
-  "0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067",
-].map(a => a.toLowerCase());
-
-const allCollections = [...((collections as Collection[] | undefined) ?? [])].filter(
-  col => !HIDDEN_COLLECTIONS.includes(col.contractAddress.toLowerCase())
-);
-  const featuredListings = ((activeListings as Listing[] | undefined) ?? [])
-  .filter(l => !HIDDEN_COLLECTIONS.includes(l.nftContract.toLowerCase()))
-  .slice(0, 4);
-
+const featuredListings = [...((activeListings as Listing[] | undefined) ?? [])].slice(0, 4);
   // Helper: get collection info for a listing
   function getCollectionForListing(listing: Listing): Collection | undefined {
     return allCollections.find(
