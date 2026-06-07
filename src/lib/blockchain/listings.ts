@@ -22,6 +22,9 @@ const marketplaceContract = {
   abi: VASTMINT_MARKETPLACE_ABI,
 } as const;
 
+const FALLBACK_RPC_BATCH_SIZE = 25;
+const FALLBACK_MAX_LISTING_READS = 250;
+
 function normalizeListing(
   listing:
     | readonly [
@@ -73,24 +76,36 @@ export async function fetchMarketplaceListings(
 
     if (nextListingId <= 1n) return [];
 
+    const totalListings = Number(nextListingId - 1n);
+    const listingReadCount = Math.min(totalListings, FALLBACK_MAX_LISTING_READS);
+    const startListingId = totalListings - listingReadCount + 1;
     const listingIds = Array.from(
-      { length: Number(nextListingId - 1n) },
-      (_, index) => BigInt(index + 1)
+      { length: listingReadCount },
+      (_, index) => BigInt(startListingId + index)
     );
 
-    const results = await Promise.all(
-      listingIds.map(async (listingId) => {
-        try {
-          return await publicClient.readContract({
-            ...marketplaceContract,
-            functionName: "listings",
-            args: [listingId],
-          });
-        } catch {
-          return null;
-        }
-      })
-    );
+    const results = [];
+    for (
+      let index = 0;
+      index < listingIds.length;
+      index += FALLBACK_RPC_BATCH_SIZE
+    ) {
+      const batch = listingIds.slice(index, index + FALLBACK_RPC_BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (listingId) => {
+          try {
+            return await publicClient.readContract({
+              ...marketplaceContract,
+              functionName: "listings",
+              args: [listingId],
+            });
+          } catch {
+            return null;
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
 
     const seller = filter.seller?.toLowerCase();
     const nftContract = filter.nftContract?.toLowerCase();

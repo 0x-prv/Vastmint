@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import {
   useAccount,
@@ -107,7 +107,7 @@ type CollectionInfo = {
 
 function NFTCard({
   listing,
-  collections,
+  collectionByContract,
   isMine,
   isConnected,
   buyingId,
@@ -116,7 +116,7 @@ function NFTCard({
   onCancelSuccess,
 }: {
   listing: Listing;
-  collections: CollectionInfo[];
+  collectionByContract: Map<string, CollectionInfo>;
   isMine: boolean;
   isConnected: boolean;
   buyingId: bigint | null;
@@ -126,10 +126,7 @@ function NFTCard({
 }) {
   // Find fallback image from factory collection data
   const collectionFallback =
-    collections.find(
-      (c) =>
-        c.contractAddress.toLowerCase() === listing.nftContract.toLowerCase()
-    )?.image ?? "";
+    collectionByContract.get(listing.nftContract.toLowerCase())?.image ?? "";
 
   const image = useTokenImage(
     listing.nftContract,
@@ -387,7 +384,15 @@ function MarketplacePage() {
     chainId: RITUAL_CHAIN_ID,
   });
 
-const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
+  const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
+  const collectionByContract = useMemo(() => {
+    return new Map(
+      collections.map((collection) => [
+        collection.contractAddress.toLowerCase(),
+        collection,
+      ])
+    );
+  }, [collections]);
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && buyState === "confirming" },
@@ -441,18 +446,18 @@ const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
   const sortedListings = listings
     ? [...listings]
         .filter((l) => {
-  if (!searchQuery) return true;
-  const collection = collections.find(
-    (c) => c.contractAddress.toLowerCase() === l.nftContract.toLowerCase()
-  );
-  return (
-    `token #${l.tokenId.toString()}`.includes(searchQuery) ||
-    l.seller.toLowerCase().includes(searchQuery) ||
-    l.nftContract.toLowerCase().includes(searchQuery) ||
-    collection?.name?.toLowerCase().includes(searchQuery) ||
-    collection?.symbol?.toLowerCase().includes(searchQuery)
-  );
-})
+          if (!searchQuery) return true;
+          const collection = collectionByContract.get(
+            l.nftContract.toLowerCase()
+          );
+          return (
+            `token #${l.tokenId.toString()}`.includes(searchQuery) ||
+            l.seller.toLowerCase().includes(searchQuery) ||
+            l.nftContract.toLowerCase().includes(searchQuery) ||
+            collection?.name?.toLowerCase().includes(searchQuery) ||
+            collection?.symbol?.toLowerCase().includes(searchQuery)
+          );
+        })
         .sort((a, b) => {
           if (activeFilter === "Cheapest") return Number(a.price - b.price);
           if (activeFilter === "Most Recent")
@@ -635,7 +640,7 @@ const collections = (allCollections as CollectionInfo[] | undefined) ?? [];
               <NFTCard
                 key={listing.listingId.toString()}
                 listing={listing}
-                collections={collections}
+                collectionByContract={collectionByContract}
                 isMine={address?.toLowerCase() === listing.seller.toLowerCase()}
                 isConnected={isConnected}
                 buyingId={buyingId}

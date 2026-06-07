@@ -10,7 +10,7 @@ import {
   useSwitchChain,
   usePublicClient,
 } from "wagmi";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   VASTMINT_FACTORY_ADDRESS,
   VASTMINT_MARKETPLACE_ADDRESS,
@@ -24,6 +24,7 @@ import {
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+const NFT_GRID_PAGE_SIZE = 24;
 
 function resolveIpfs(uri?: string | null): string | null {
   if (!uri) return null;
@@ -240,6 +241,7 @@ export default function CollectionPage() {
   const { switchChainAsync } = useSwitchChain();
   const [buying, setBuying] = useState<bigint | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [visibleCount, setVisibleCount] = useState(NFT_GRID_PAGE_SIZE);
 
   const { data, isLoading } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
@@ -283,23 +285,38 @@ export default function CollectionPage() {
       ? Math.min(...activeListings.map((l) => Number(l.price) / 1e18))
       : null;
 
-  const tokenIds = Array.from({ length: minted }, (_, i) => i);
-  const listingByTokenId = new Map(
-    activeListings.map((l) => [Number(l.tokenId), l])
-  );
+  const listingByTokenId = useMemo(() => {
+    return new Map(activeListings.map((l) => [Number(l.tokenId), l]));
+  }, [activeListings]);
 
-  let displayTokens = tokenIds;
-  if (filter === "listed") {
-    displayTokens = tokenIds.filter((id) => listingByTokenId.has(id));
-  } else if (filter === "cheapest") {
-    displayTokens = tokenIds
-      .filter((id) => listingByTokenId.has(id))
-      .sort((a, b) => {
-        const priceA = Number(listingByTokenId.get(a)?.price ?? 0);
-        const priceB = Number(listingByTokenId.get(b)?.price ?? 0);
+  const listedTokenIds = useMemo(() => {
+    const ids = activeListings.map((listing) => Number(listing.tokenId));
+
+    if (filter === "cheapest") {
+      ids.sort((a, b) => {
+        const priceA = Number(listingByTokenId.get(a)?.price ?? 0n);
+        const priceB = Number(listingByTokenId.get(b)?.price ?? 0n);
         return priceA - priceB;
       });
-  }
+    }
+
+    return ids;
+  }, [activeListings, filter, listingByTokenId]);
+
+  const totalDisplayCount = filter === "all" ? minted : listedTokenIds.length;
+  const visibleDisplayCount = Math.min(visibleCount, totalDisplayCount);
+  const displayTokens = useMemo(() => {
+    if (filter === "all") {
+      return Array.from({ length: visibleDisplayCount }, (_, i) => i);
+    }
+
+    return listedTokenIds.slice(0, visibleDisplayCount);
+  }, [filter, listedTokenIds, visibleDisplayCount]);
+  const hasMoreTokens = visibleDisplayCount < totalDisplayCount;
+
+  useEffect(() => {
+    setVisibleCount(NFT_GRID_PAGE_SIZE);
+  }, [filter, collection?.contractAddress, minted]);
 
   async function handleBuy(listingId: bigint, price: bigint) {
     if (!address) return;
@@ -454,7 +471,7 @@ export default function CollectionPage() {
             </button>
           ))}
           <span className="ml-auto text-[#7a9e7a] text-sm self-center">
-            {displayTokens.length} items
+            {totalDisplayCount} items
           </span>
         </div>
 
@@ -480,20 +497,35 @@ export default function CollectionPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {displayTokens.map((tokenId) => (
-              <NFTCard
-                key={tokenId}
-                collection={collection}
-                tokenId={tokenId}
-                listing={listingByTokenId.get(tokenId)}
-                address={address}
-                buying={buying}
-                onBuy={handleBuy}
-                onCancelSuccess={refetchListings}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {displayTokens.map((tokenId) => (
+                <NFTCard
+                  key={tokenId}
+                  collection={collection}
+                  tokenId={tokenId}
+                  listing={listingByTokenId.get(tokenId)}
+                  address={address}
+                  buying={buying}
+                  onBuy={handleBuy}
+                  onCancelSuccess={refetchListings}
+                />
+              ))}
+            </div>
+
+            {hasMoreTokens && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={() =>
+                    setVisibleCount((count) => count + NFT_GRID_PAGE_SIZE)
+                  }
+                  className="rounded-xl border border-[#1a4a2e]/30 px-5 py-3 text-sm font-bold text-[#1a4a2e] hover:bg-[#1a4a2e]/10 transition"
+                >
+                  Load More
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
