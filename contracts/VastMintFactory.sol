@@ -12,6 +12,7 @@ contract VastMintFactory {
         string symbol;
         string description;
         string image;
+        string baseURI;
         uint256 maxSupply;
         uint256 mintPrice;
         uint256 whitelistPrice;
@@ -37,6 +38,7 @@ contract VastMintFactory {
         string memory _symbol,
         string memory _description,
         string memory _image,
+        string memory _baseURI,
         uint256 _maxSupply,
         uint256 _mintPrice,
         uint256 _whitelistPrice,
@@ -55,6 +57,7 @@ contract VastMintFactory {
             _symbol,
             _description,
             _image,
+            _baseURI,
             _maxSupply,
             _mintPrice,
             _whitelistPrice,
@@ -70,6 +73,7 @@ contract VastMintFactory {
             symbol: _symbol,
             description: _description,
             image: _image,
+            baseURI: _baseURI,
             maxSupply: _maxSupply,
             mintPrice: _mintPrice,
             whitelistPrice: _whitelistPrice,

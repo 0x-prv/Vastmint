@@ -23,7 +23,6 @@ const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 
 type MintState =
   | "idle"
-  | "uploading"
   | "switching"
   | "pending"
   | "confirming"
@@ -188,90 +187,17 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
         setMintState("error");
         return;
       }
-
-      setMintState("uploading");
-
-      const nextTokenId = minted;
-// Check localStorage muna, then IPFS manifest fallback
-let csvToken = null;
-try {
-  // Try localStorage first (creator's browser)
-  const storedMeta = localStorage.getItem(`vastmint_metadata_${slug}`);
-  if (storedMeta) {
-    const csvMetadata = JSON.parse(storedMeta);
-    csvToken = csvMetadata?.[nextTokenId] ?? null;
-  }
-
-  // Kung wala sa localStorage, try IPFS manifest
-  if (!csvToken) {
-    const manifestCid = localStorage.getItem(`vastmint_manifest_${slug}`);
-    if (manifestCid) {
-      const manifestRes = await fetch(`https://gateway.pinata.cloud/ipfs/${manifestCid}`);
-      if (manifestRes.ok) {
-        const manifest = await manifestRes.json();
-        csvToken = manifest?.tokens?.[nextTokenId] ?? null;
-        // I-cache sa localStorage para sa susunod
-        if (manifest?.tokens) {
-          localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(manifest.tokens));
-        }
-      }
-    }
-  }
-} catch {
-  // Walang metadata — okay lang, magga-generate ng default
-}
-      // Build metadata — no random/placeholder traits
-      const metadata = {
-        name: csvToken?.name ?? `${collection.name} #${nextTokenId}`,
-        description: csvToken?.description ?? collection.description,
-        image: collection.image,
-        attributes: [
-          { trait_type: "Collection", value: collection.name },
-          { trait_type: "Symbol", value: collection.symbol },
-          { trait_type: "Token ID", value: nextTokenId.toString() }, // ✅ actual token ID
-          { trait_type: "Network", value: "Ritual Testnet" },
-          { trait_type: "Minted By", value: address },
-          // ✅ CSV traits only — no random fallback traits
-          ...(csvToken?.attributes ?? []),
-        ],
-      };
-
-      const metadataRes = await fetch("/api/pinata/json", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(metadata),
-      });
-
-      if (!metadataRes.ok) {
-        throw new Error("Metadata upload failed");
-      }
-
-      const metadataJson = await metadataRes.json();
-      const metadataCid =
-        metadataJson.IpfsHash || metadataJson.cid || metadataJson.ipfsHash;
-
-      if (!metadataCid) {
-        throw new Error("Metadata CID missing");
-      }
-
-      const tokenURI = `ipfs://${metadataCid}`;
-
-      setMintState("pending");
-
-      const tx = await writeContractAsync({
+const tx = await writeContractAsync({
   address: contractAddress,
   abi: VASTMINT_NFT_ABI,
   functionName: phaseNumber === 1 ? "whitelistMint" : "mintNFT",
-  args:
-    phaseNumber === 1
-      ? [address, tokenURI, []]
-      : [address, tokenURI],
-  value:
-    phaseNumber === 1
-      ? (whitelistPrice as bigint)
-      : (mintPrice as bigint),
+  args: phaseNumber === 1
+    ? [address, [] as `0x${string}`[]]
+    : [address],
+  value: phaseNumber === 1
+    ? (whitelistPrice as bigint)
+    : (mintPrice as bigint),
 });
-
       setTxHash(tx);
       setMintState("confirming");
     } catch (err: unknown) {

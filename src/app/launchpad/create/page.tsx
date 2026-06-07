@@ -109,7 +109,6 @@ export default function LaunchpadCreatePage() {
   const displayDeployState = txConfirmed && deployState === "confirming" ? "success" : deployState;
   const displayStep = displayDeployState === "success" ? 3 : step;
   const isPending =
-    displayDeployState === "uploading" ||
     displayDeployState === "switching" ||
     displayDeployState === "pending" ||
     displayDeployState === "confirming";
@@ -178,112 +177,128 @@ export default function LaunchpadCreatePage() {
     }
   }
 
-  async function handleDeploy() {
+async function handleDeploy() {
     if (!address || !isConnected || !imageFile) return;
     setErrorMsg(null);
     setDeployState("uploading");
 
     try {
-      // Step 1: Upload cover image
-      let cid = imageCid;
-      if (!cid) {
-        cid = await uploadToPinata(imageFile);
-        if (!cid) {
-          setErrorMsg("Image upload failed. Please try again.");
+      // ── Step 1: Upload cover image (para sa collection thumbnail) ──────────
+      let coverCid = imageCid;
+      if (!coverCid) {
+        coverCid = await uploadToPinata(imageFile);
+        if (!coverCid) {
+          setErrorMsg("Cover image upload failed. Please try again.");
           setDeployState("error");
           return;
         }
-        setImageCid(cid);
+        setImageCid(coverCid);
       }
 
-      // Step 2: Upload metadata JSON
-      const metadata = {
-        name,
-        description,
-        image: `ipfs://${cid}`,
-        attributes: [
-          { trait_type: "Collection", value: name },
-          { trait_type: "Network", value: "Ritual Testnet" },
-        ],
-      };
+      // ── Step 2: Upload all NFT images ──────────────────────────────────────
+      // Upload images as individual files, get their CIDs
+      const imageCids: string[] = [];
+      for (let i = 0; i < imageFiles.length; i++) {
+        const cid = await uploadToPinata(imageFiles[i]);
+        if (!cid) {
+          setErrorMsg(`Image #${i + 1} upload failed. Please try again.`);
+          setDeployState("error");
+          return;
+        }
+        imageCids.push(cid);
+      }
 
-      const metaRes = await fetch("/api/pinata/json", {
+      // ── Step 3: Generate and upload metadata folder ────────────────────────
+      // Each token gets a JSON file: 0.json, 1.json, 2.json, etc.
+      const metadataFormData = new FormData();
+      const totalTokens = Number(supply);
+
+      for (let i = 0; i < totalTokens; i++) {
+        const imgCid = imageCids[i] ?? imageCids[0]; // fallback to first image
+        const csvToken = tokenMetadata[i] ?? null;
+
+        const metadata = {
+          name: csvToken?.name ?? `${name} #${i}`,
+          description: csvToken?.description ?? description,
+          image: `ipfs://${imgCid}`,
+          attributes: [
+            { trait_type: "Collection", value: name },
+            { trait_type: "Token ID", value: i.toString() },
+            ...(csvToken?.attributes ?? []),
+          ],
+        };
+
+        const blob = new Blob([JSON.stringify(metadata)], {
+          type: "application/json",
+        });
+        const file = new File([blob], `${i}.json`, { type: "application/json" });
+        metadataFormData.append("file", file, `${i}.json`);
+      }
+
+      metadataFormData.append(
+        "pinataMetadata",
+        JSON.stringify({ name: `${slugify(name)}-metadata` })
+      );
+
+      const folderRes = await fetch("/api/pinata/folder", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pinataContent: metadata,
-          pinataMetadata: { name: `${name}-metadata` },
-        }),
+        body: metadataFormData,
       });
 
-      if (!metaRes.ok) throw new Error("Metadata upload failed");
-      const metaData = await metaRes.json();
-      const metadataCid = metaData.IpfsHash as string;
-      if (!metadataCid) throw new Error("Metadata CID missing");
-      const imageUri = `ipfs://${cid}`;
+      if (!folderRes.ok) {
+        throw new Error("Metadata folder upload failed");
+      }
 
-      // Step 3: Switch network if needed
+      const folderData = await folderRes.json();
+      const folderCid = folderData.IpfsHash;
+      if (!folderCid) throw new Error("Folder CID missing");
+
+      // baseURI = ipfs://folderCID/ — contract will append tokenId + ".json"
+      const baseURIValue = `ipfs://${folderCid}/`;
+      const imageUri = `ipfs://${coverCid}`;
+
+      // ── Step 4: Switch network if needed ───────────────────────────────────
       if (isWrongNetwork) {
         setDeployState("switching");
         await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
       }
 
-      // Step 4: Deploy via Factory
+      // ── Step 5: Deploy via Factory ─────────────────────────────────────────
       setDeployState("pending");
       const slug = slugify(name);
       const mintPriceWei = price && Number(price) > 0 ? parseEther(price) : 0n;
       const whitelistPriceWei =
-  whitelistPrice && Number(whitelistPrice) > 0
-    ? parseEther(whitelistPrice)
-    : 0n;
+        whitelistPrice && Number(whitelistPrice) > 0
+          ? parseEther(whitelistPrice)
+          : 0n;
 
       const tx = await writeContractAsync({
         address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
         abi: VASTMINT_FACTORY_ABI,
         functionName: "createCollection",
-      args: [
-  name.trim(),
-  symbol.trim().toUpperCase(),
-  description.trim(),
-  imageUri,
-  BigInt(supply),
-  mintPriceWei,
-  whitelistPriceWei,
-  BigInt(maxPerWallet || "1"),
-  "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // ← whitelistRoot (empty muna)
-  slug,
-],
+        args: [
+          name.trim(),
+          symbol.trim().toUpperCase(),
+          description.trim(),
+          imageUri,
+          baseURIValue,
+          BigInt(supply),
+          mintPriceWei,
+          whitelistPriceWei,
+          BigInt(maxPerWallet || "1"),
+          "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
+          slug,
+        ],
       });
 
       setTxHash(tx);
       setDeployedSlug(slug);
       setDeployState("confirming");
 
-      // Upload CSV metadata manifest to IPFS para available sa lahat
+      // ── Step 6: Store manifest CID sa localStorage (fallback) ─────────────
       if (tokenMetadata.length > 0) {
         localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(tokenMetadata));
-        
-        // Upload manifest to Pinata
-        try {
-          const manifestRes = await fetch("/api/pinata/json", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              pinataContent: { tokens: tokenMetadata },
-              pinataMetadata: { name: `${slug}-metadata-manifest` },
-            }),
-          });
-          if (manifestRes.ok) {
-            const manifestData = await manifestRes.json();
-            const manifestCid = manifestData.IpfsHash;
-            if (manifestCid) {
-              localStorage.setItem(`vastmint_manifest_${slug}`, manifestCid);
-            }
-          }
-        } catch {
-          // Manifest upload failed — localStorage fallback pa rin
-          console.error("Manifest upload failed");
-        }
+        localStorage.setItem(`vastmint_baseuri_${slug}`, baseURIValue);
       }
 
     } catch (err: unknown) {
@@ -292,12 +307,13 @@ export default function LaunchpadCreatePage() {
       const short =
         message.includes("rejected") || message.includes("denied")
           ? "Transaction rejected by wallet."
+          : message.includes("upload failed") || message.includes("CID missing")
+          ? "Upload failed. Please try again."
           : "Deploy failed. Please try again.";
       setErrorMsg(short);
       setDeployState("error");
     }
-  }
-
+  }     
   const canProceedStep0 =
     name.trim().length > 0 &&
     symbol.trim().length > 0 &&

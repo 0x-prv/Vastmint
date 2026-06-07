@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract VastMintNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract VastMintNFT is ERC721, Ownable, ReentrancyGuard {
 
     // ─── Enums ───────────────────────────────────────────────────────────────
     enum Phase { Paused, Whitelist, Public }
@@ -14,17 +14,17 @@ contract VastMintNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     // ─── State ───────────────────────────────────────────────────────────────
     uint256 public nextTokenId;
     uint256 public maxSupply;
-    uint256 public mintPrice;          // Public mint price
-    uint256 public whitelistPrice;     // WL mint price (can be lower or same)
-    uint256 public maxPerWallet;       // 0 = unlimited
-    Phase   public phase;              // Current mint phase
-    bytes32 public whitelistRoot;      // Merkle root for WL verification
+    uint256 public mintPrice;
+    uint256 public whitelistPrice;
+    uint256 public maxPerWallet;
+    Phase   public phase;
+    bytes32 public whitelistRoot;
 
+    string public baseURI;
     string public collectionDescription;
     string public collectionImage;
     address public factory;
 
-    // Track mints per wallet
     mapping(address => uint256) public mintCount;
 
     // ─── Events ──────────────────────────────────────────────────────────────
@@ -32,31 +32,34 @@ contract VastMintNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     event WhitelistRootUpdated(bytes32 newRoot);
     event MintPricesUpdated(uint256 publicPrice, uint256 wlPrice);
     event MaxPerWalletUpdated(uint256 newMax);
+    event BaseURIUpdated(string newBaseURI);
 
     // ─── Constructor ─────────────────────────────────────────────────────────
-   constructor(
-    string memory _name,
-    string memory _symbol,
-    string memory _description,
-    string memory _image,
-   uint256 _maxSupply,
-    uint256 _mintPrice,
-    uint256 _whitelistPrice,
-    uint256 _maxPerWallet,
-    bytes32 _whitelistRoot,
-    address _creator
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        string memory _description,
+        string memory _image,
+        string memory _baseURI,
+        uint256 _maxSupply,
+        uint256 _mintPrice,
+        uint256 _whitelistPrice,
+        uint256 _maxPerWallet,
+        bytes32 _whitelistRoot,
+        address _creator
     ) ERC721(_name, _symbol) Ownable(_creator) {
-        maxSupply        = _maxSupply;
-        mintPrice        = _mintPrice;
-        whitelistPrice   = _whitelistPrice;
-        maxPerWallet     = _maxPerWallet;
-        whitelistRoot = _whitelistRoot;
-
+        baseURI           = _baseURI;
+        maxSupply         = _maxSupply;
+        mintPrice         = _mintPrice;
+        whitelistPrice    = _whitelistPrice;
+        maxPerWallet      = _maxPerWallet;
+        whitelistRoot     = _whitelistRoot;
         collectionDescription = _description;
-        collectionImage  = _image;
-        factory          = msg.sender;
-        phase            = Phase.Paused; // Start paused — creator controls when to open
+        collectionImage   = _image;
+        factory           = msg.sender;
+        phase             = Phase.Paused;
     }
+
     // ─── Modifiers ───────────────────────────────────────────────────────────
     modifier withinSupply() {
         require(nextTokenId < maxSupply, "Max supply reached");
@@ -70,50 +73,67 @@ contract VastMintNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
         _;
     }
 
+    // ─── tokenURI override ───────────────────────────────────────────────────
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(tokenId < nextTokenId, "Token does not exist");
+        return string(abi.encodePacked(baseURI, _toString(tokenId), ".json"));
+    }
+
+    function _toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
     // ─── Mint Functions ──────────────────────────────────────────────────────
 
-    // Public mint — open to everyone during Public phase
     function mintNFT(
-        address to,
-        string memory tokenURI
+        address to
     ) public payable nonReentrant withinSupply withinWalletLimit(to) returns (uint256) {
         require(phase == Phase.Public, "Public mint not active");
         require(msg.value >= mintPrice, "Insufficient payment");
-
-        return _mintToken(to, tokenURI);
+        return _mintToken(to);
     }
 
-    // Whitelist mint — requires valid Merkle proof
     function whitelistMint(
         address to,
-        string memory tokenURI,
         bytes32[] calldata proof
     ) public payable nonReentrant withinSupply withinWalletLimit(to) returns (uint256) {
         require(phase == Phase.Whitelist, "Whitelist mint not active");
         require(whitelistRoot != bytes32(0), "Whitelist not configured");
         require(msg.value >= whitelistPrice, "Insufficient payment");
 
-        // Verify Merkle proof
         bytes32 leaf = keccak256(abi.encodePacked(to));
         require(MerkleProof.verify(proof, whitelistRoot, leaf), "Not whitelisted");
 
-        return _mintToken(to, tokenURI);
+        return _mintToken(to);
     }
 
-    // Internal mint logic
-    function _mintToken(
-        address to,
-        string memory tokenURI
-    ) internal returns (uint256) {
+    function _mintToken(address to) internal returns (uint256) {
         uint256 tokenId = nextTokenId;
         nextTokenId++;
         mintCount[to]++;
         _safeMint(to, tokenId);
-        _setTokenURI(tokenId, tokenURI);
         return tokenId;
     }
 
     // ─── Owner Functions ─────────────────────────────────────────────────────
+
+    function setBaseURI(string memory _baseURI) external onlyOwner {
+        baseURI = _baseURI;
+        emit BaseURIUpdated(_baseURI);
+    }
 
     function setPhase(Phase _phase) external onlyOwner {
         phase = _phase;

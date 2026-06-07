@@ -798,7 +798,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {(myCollections as Collection[]).map((col) => (
+                {([...(myCollections as readonly Collection[])] as Collection[]).map((col) => (
                   <CollectionManagerCard
                     key={col.contractAddress}
                     col={col}
