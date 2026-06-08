@@ -214,19 +214,37 @@ if (tokenMetadata.length > 0 && tokenMetadata.length !== totalTokens) {
         }
         setImageCid(coverCid);
       }
+      // ── Step 2: Upload all NFT images (batched parallel with retry) ────────
+async function uploadWithRetry(file: File, index: number, retries = 3): Promise<string> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const cid = await uploadToPinata(file);
+    if (cid) return cid;
+    if (attempt < retries - 1) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+  }
+  throw new Error(`Image #${index + 1} upload failed after ${retries} attempts.`);
+}
 
-      // ── Step 2: Upload all NFT images ──────────────────────────────────────
-      // Upload images as individual files, get their CIDs
-      const imageCids: string[] = [];
-      for (let i = 0; i < imageFiles.length; i++) {
-        const cid = await uploadToPinata(imageFiles[i]);
-        if (!cid) {
-          setErrorMsg(`Image #${i + 1} upload failed. Please try again.`);
-          setDeployState("error");
-          return;
-        }
-        imageCids.push(cid);
-      }
+const BATCH_SIZE = 5;
+const imageCids: string[] = new Array(imageFiles.length);
+
+for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
+  const batch = imageFiles.slice(i, i + BATCH_SIZE);
+  try {
+    const results = await Promise.all(
+      batch.map((file, j) => uploadWithRetry(file, i + j))
+    );
+    results.forEach((cid, j) => { imageCids[i + j] = cid; });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Image upload failed.";
+    setErrorMsg(message);
+    setDeployState("error");
+    return;
+  }
+  // Small delay between batches para hindi ma-rate limit
+  if (i + BATCH_SIZE < imageFiles.length) {
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
 
       // ── Step 3: Generate and upload metadata folder ────────────────────────
       // Each token gets a JSON file: 0.json, 1.json, 2.json, etc.
