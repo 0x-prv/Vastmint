@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
+import { parseGwei } from "viem";
 import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
@@ -253,78 +254,33 @@ export default function LaunchpadCreatePage() {
   }
   // Upload metadata JSON folder as one direct Pinata call
   async function uploadMetadataFolder(
-  imageFolderCid: string,
-  totalTokens: number,
-  coverCid: string
-): Promise<string | null> {
-  try {
-    const credentials = await getPinataCredentials();
-
-    const formData = new FormData();
-    const folderName = slugify(name) || "metadata";
-
-    for (let i = 0; i < totalTokens; i++) {
-      const csvToken = tokenMetadata[i] ?? null;
-      const ext = imageFiles[0]?.name.split(".").pop() ?? "png";
-
-      const metadata = {
-        name: csvToken?.name ?? `${name} #${i + 1}`,
-        description: csvToken?.description ?? description,
-        image: `ipfs://${imageFolderCid}/${i + 1}.${ext}`,
-        attributes: [
-          {
-            trait_type: "Collection",
-            value: name,
-          },
-          ...(csvToken?.attributes ?? []),
-        ],
-      };
-
-      const blob = new Blob(
-        [JSON.stringify(metadata)],
-        { type: "application/json" }
-      );
-
-      formData.append(
-        "file",
-        new File(
-          [blob],
-          `${folderName}/${i}.json`,
-          { type: "application/json" }
-        ),
-        `${folderName}/${i}.json`
-      );
-    }
-
-    formData.append(
-      "pinataMetadata",
-      JSON.stringify({
-        name: `${slugify(name)}-metadata`,
-      })
-    );
-
-    formData.append(
-      "pinataOptions",
-      JSON.stringify({
-        wrapWithDirectory: true,
-      })
-    );
-
-    return await uploadFormDataToPinata(
-      formData,
-      credentials,
-      "Metadata folder upload failed"
-    );
-  } catch (err) {
-    console.error("uploadMetadataFolder:", err);
-    setErrorMsg(
-      err instanceof Error
-        ? err.message
-        : "Metadata folder upload failed."
-    );
-    return null;
+    imageFolderCid: string,
+    totalTokens: number,
+    coverCid: string
+  ): Promise<string | null> {
+    try {
+      const credentials = await getPinataCredentials();
+      const formData = new FormData();
+      for (let i = 0; i < totalTokens; i++) {
+        const csvToken = tokenMetadata[i] ?? null;
+        const ext = imageFiles[0]?.name.split(".").pop() ?? "png";
+        const metadata = {
+          name: csvToken?.name ?? `${name} #${i + 1}`,
+          description: csvToken?.description ?? description,
+          image: `ipfs://${imageFolderCid}/${i + 1}.${ext}`,
+          attributes: [
+            { trait_type: "Collection", value: name },
+            ...(csvToken?.attributes ?? []),
+          ],
+        };
+        const blob = new Blob([JSON.stringify(metadata)], { type: "application/json" });
+        formData.append("file", new File([blob], `${i}.json`, { type: "application/json" }), `${i}.json`);
+      }
+      formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-metadata` }));
+      formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
+      return await uploadFormDataToPinata(formData, credentials, "Metadata folder upload failed");
+    } catch { return null; }
   }
-}
 
   async function handleDeploy() {
     if (!address || !isConnected) return;
@@ -412,23 +368,24 @@ export default function LaunchpadCreatePage() {
       const whitelistPriceWei = whitelistPrice && Number(whitelistPrice) > 0 ? parseEther(whitelistPrice) : 0n;
 
       const tx = await writeContractAsync({
-        address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
-        abi: VASTMINT_FACTORY_ABI,
-        functionName: "createCollection",
-        args: [
-          name.trim(),
-          symbol.trim().toUpperCase(),
-          description.trim(),
-          imageUri,
-          baseURIValue,
-          BigInt(supply),
-          mintPriceWei,
-          whitelistPriceWei,
-          BigInt(maxPerWallet || "1"),
-          "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
-          slug,
-        ],
-      });
+  address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
+  abi: VASTMINT_FACTORY_ABI,
+  functionName: "createCollection",
+  args: [
+    name.trim(),
+    symbol.trim().toUpperCase(),
+    description.trim(),
+    imageUri,
+    baseURIValue,
+    BigInt(supply),
+    mintPriceWei,
+    whitelistPriceWei,
+    BigInt(maxPerWallet || "1"),
+    "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
+    slug,
+  ],
+  gasPrice: parseGwei("1"),
+});
 
       setTxHash(tx);
       setDeployedSlug(slug);

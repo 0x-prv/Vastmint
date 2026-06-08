@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatEther } from "viem";
+import { parseGwei } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -197,6 +198,7 @@ const tx = await writeContractAsync({
   value: phaseNumber === 1
     ? (whitelistPrice as bigint)
     : (mintPrice as bigint),
+  gasPrice: parseGwei("1"),
 });
       setTxHash(tx);
       setMintState("confirming");
