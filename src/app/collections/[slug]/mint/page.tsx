@@ -32,6 +32,14 @@ type MintState =
   | "success"
   | "error";
 
+type Hex = `0x${string}`;
+
+type WhitelistProofData = {
+  root: Hex;
+  addresses: Hex[];
+  proofs: Record<string, Hex[]>;
+};
+
 type Collection = {
   contractAddress: `0x${string}`;
   creator: `0x${string}`;
@@ -68,6 +76,7 @@ export default function MintPage() {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
+  const [whitelistProofData, setWhitelistProofData] = useState<WhitelistProofData | null>(null);
 
   // Fetch collection from Factory
   const { data: collectionData, isLoading: collectionLoading } =
@@ -155,6 +164,15 @@ const userMinted = userMintCount ? Number(userMintCount) : 0;
 const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
   const isSoldOut = maxSupply > 0 && minted >= maxSupply;
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`vastmint_whitelist_${slug}`);
+      setWhitelistProofData(stored ? (JSON.parse(stored) as WhitelistProofData) : null);
+    } catch {
+      setWhitelistProofData(null);
+    }
+  }, [slug]);
+
   const { isSuccess: txConfirmed, data: txReceipt } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash && mintState === "confirming" },
@@ -211,10 +229,27 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
           return;
         }
 
-        setErrorMsg(
-          "Whitelist proof data is not available in the current VastMint frontend flow. Ask the creator to switch to public mint or publish a supported proof source."
-        );
-        setMintState("error");
+        const normalizedAddress = address.toLowerCase();
+        const proof = whitelistProofData?.proofs?.[normalizedAddress];
+
+        if (whitelistProofData?.root?.toLowerCase() !== (whitelistRoot as string).toLowerCase() || !Array.isArray(proof)) {
+          setErrorMsg("This wallet is not whitelisted.");
+          setMintState("error");
+          return;
+        }
+
+        const tx = await writeContractAsync({
+          address: contractAddress,
+          abi: VASTMINT_NFT_ABI,
+          functionName: "whitelistMint",
+          args: [address, proof],
+          value: whitelistPrice as bigint,
+          type: "legacy",
+          gasPrice: parseGwei("1"),
+        });
+
+        setTxHash(tx);
+        setMintState("confirming");
         return;
       }
 

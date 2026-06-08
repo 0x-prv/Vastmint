@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther } from "viem";
+import { encodePacked, isAddress, keccak256, parseEther } from "viem";
 import { parseGwei } from "viem";
 import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
@@ -11,6 +11,15 @@ import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 const steps = ["Details", "Upload", "Deploy", "Success"];
 const BROWSER_UPLOAD_LIMIT = 200;
 const PINATA_FILE_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
+const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
+
+type Hex = `0x${string}`;
+
+type WhitelistProofData = {
+  root: Hex;
+  addresses: Hex[];
+  proofs: Record<Hex, Hex[]>;
+};
 
 type DeployState = "idle" | "uploading" | "switching" | "pending" | "confirming" | "success" | "error";
 type UploadMode = "browser" | "ipfs";
@@ -111,6 +120,68 @@ function parseCSV(csvText: string, collectionName: string): TokenMetadata[] {
   });
 }
 
+function parseWhitelistAddresses(input: string): { addresses: Hex[]; invalidAddresses: string[] } {
+  const seen = new Set<string>();
+  const addresses: Hex[] = [];
+  const invalidAddresses: string[] = [];
+
+  input
+    .split(/[\n,]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      if (!isAddress(value)) { invalidAddresses.push(value); return; }
+      const normalized = value.toLowerCase() as Hex;
+      if (!seen.has(normalized)) { seen.add(normalized); addresses.push(normalized); }
+    });
+
+  return { addresses, invalidAddresses };
+}
+
+function hashWhitelistLeaf(address: Hex): Hex {
+  return keccak256(encodePacked(["address"], [address]));
+}
+
+function hashMerklePair(left: Hex, right: Hex): Hex {
+  const [a, b] = left.toLowerCase() <= right.toLowerCase() ? [left, right] : [right, left];
+  return keccak256(encodePacked(["bytes32", "bytes32"], [a, b]));
+}
+
+function buildNextMerkleLevel(level: Hex[]): Hex[] {
+  const nextLevel: Hex[] = [];
+  for (let i = 0; i < level.length; i += 2) {
+    nextLevel.push(level[i + 1] ? hashMerklePair(level[i], level[i + 1]) : level[i]);
+  }
+  return nextLevel;
+}
+
+function buildWhitelistProofData(addresses: Hex[]): WhitelistProofData {
+  if (addresses.length === 0) return { root: ZERO_BYTES32, addresses: [], proofs: {} };
+
+  const leafByAddress = new Map(addresses.map((address) => [address, hashWhitelistLeaf(address)]));
+  const layers: Hex[][] = [addresses.map(hashWhitelistLeaf).sort((a, b) => a.localeCompare(b))];
+
+  while (layers[layers.length - 1].length > 1) {
+    layers.push(buildNextMerkleLevel(layers[layers.length - 1]));
+  }
+
+  const proofs = addresses.reduce<Record<Hex, Hex[]>>((acc, address) => {
+    let index = layers[0].indexOf(leafByAddress.get(address)!);
+    const proof: Hex[] = [];
+
+    for (let layerIndex = 0; layerIndex < layers.length - 1; layerIndex += 1) {
+      const siblingIndex = index % 2 === 0 ? index + 1 : index - 1;
+      if (siblingIndex < layers[layerIndex].length) proof.push(layers[layerIndex][siblingIndex]);
+      index = Math.floor(index / 2);
+    }
+
+    acc[address] = proof;
+    return acc;
+  }, {});
+
+  return { root: layers[layers.length - 1][0], addresses, proofs };
+}
+
 function downloadCSVTemplate(collectionName: string, supply: string) {
   const count = Math.min(Number(supply) || 3, 5);
   const header = "name,description,background,eyes,mouth";
@@ -149,6 +220,7 @@ export default function LaunchpadCreatePage() {
   const [price, setPrice] = useState("0");
   const [whitelistPrice, setWhitelistPrice] = useState("0");
   const [maxPerWallet, setMaxPerWallet] = useState("1");
+  const [whitelistAddressesInput, setWhitelistAddressesInput] = useState("");
 
   // Step 1 - Upload mode (auto-set based on supply)
   const [uploadMode, setUploadMode] = useState<UploadMode>("browser");
@@ -295,6 +367,17 @@ export default function LaunchpadCreatePage() {
       return;
     }
 
+    const { addresses: normalizedWhitelistAddresses, invalidAddresses } =
+      parseWhitelistAddresses(whitelistAddressesInput);
+
+    if (invalidAddresses.length > 0) {
+      setErrorMsg(`Invalid whitelist address${invalidAddresses.length === 1 ? "" : "es"}: ${invalidAddresses.join(", ")}`);
+      setDeployState("error");
+      return;
+    }
+
+    const whitelistProofData = buildWhitelistProofData(normalizedWhitelistAddresses);
+
     let baseURIValue = "";
     let imageUri = "";
 
@@ -381,9 +464,10 @@ export default function LaunchpadCreatePage() {
     mintPriceWei,
     whitelistPriceWei,
     BigInt(maxPerWallet || "1"),
-    "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
+    whitelistProofData.root,
     slug,
   ],
+  type: "legacy",
   gasPrice: parseGwei("1"),
 });
 
@@ -392,8 +476,9 @@ export default function LaunchpadCreatePage() {
       setDeployState("confirming");
       setUploadProgress(100);
 
-      // Store baseURI fallback
+      // Store baseURI and whitelist fallbacks
       localStorage.setItem(`vastmint_baseuri_${slug}`, baseURIValue);
+      localStorage.setItem(`vastmint_whitelist_${slug}`, JSON.stringify(whitelistProofData));
       if (tokenMetadata.length > 0) {
         localStorage.setItem(`vastmint_metadata_${slug}`, JSON.stringify(tokenMetadata));
       }
@@ -554,6 +639,17 @@ export default function LaunchpadCreatePage() {
                     min="1"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm text-[#1a2e1a]/70">Whitelist Wallet Addresses (Optional)</label>
+                <textarea
+                  value={whitelistAddressesInput}
+                  onChange={(e) => setWhitelistAddressesInput(e.target.value)}
+                  rows={5}
+                  className="w-full resize-none rounded-2xl border border-[#1a4a2e]/20 bg-[#f5f0e8] px-4 py-3 font-mono text-sm text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e] transition"
+                  placeholder={"0x1234...abcd\n0xabcd...1234"}
+                />
+                <p className="text-xs text-[#1a2e1a]/30 mt-1">One wallet per line or comma separated. Addresses are normalized and saved locally with their Merkle proofs.</p>
               </div>
             </div>
           )}
@@ -861,6 +957,7 @@ export default function LaunchpadCreatePage() {
                   { label: "Supply", value: Number(supply).toLocaleString() },
                   { label: "Mint Price", value: price === "0" || !price ? "Free" : `${price} RITUAL` },
                   { label: "Whitelist Price", value: whitelistPrice === "0" || !whitelistPrice ? "Free" : `${whitelistPrice} RITUAL` },
+                  { label: "Whitelist Wallets", value: String(parseWhitelistAddresses(whitelistAddressesInput).addresses.length) },
                   { label: "Max Per Wallet", value: maxPerWallet || "1" },
                   { label: "Slug", value: slugify(name) },
                   { label: "Network", value: "Ritual Testnet" },
