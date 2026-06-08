@@ -480,7 +480,7 @@ export default function SupportPage() {
   const selectedIssue = openIssue ? ISSUES.find((i) => i.id === openIssue) : null;
 
   return (
-    <div className="min-h-screen bg-[#f5f0e8] px-4 sm:px-8 py-8 max-w-5xl mx-auto">
+    <div className="min-h-screen bg-[#f5f0e8] px-4 sm:px-6 pt-6 pb-24 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-2">
@@ -488,8 +488,8 @@ export default function SupportPage() {
           <span className="text-[#1a4a2e]/20">›</span>
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a4a2e]">Support</span>
         </div>
-        <h1 className="text-2xl font-black text-[#1a2e1a] tracking-tight">Troubleshooting Center</h1>
-        <p className="text-sm text-[#4a6741] mt-1">Common errors and fixes during Ritual Testnet usage.</p>
+        <h1 className="text-5xl md:text-6xl font-black text-[#1a2e1a] leading-tight">Troubleshooting<br />Center.</h1>
+<p className="text-[#4a6741] mt-4 max-w-xl text-sm leading-relaxed">Common errors and fixes during Ritual Testnet usage.</p>
       </div>
 
       {/* Search */}
@@ -502,7 +502,7 @@ export default function SupportPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search issues, e.g. mint paused, listing failed…"
-          className="w-full bg-white border border-[#1a4a2e]/20 rounded-xl pl-10 pr-4 py-3 text-sm text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e]/50 transition"
+          className="w-full bg-white border border-[#1a4a2e]/20 rounded-xl pl-10 pr-4 py-4 text-sm text-[#1a2e1a] placeholder:text-[#7a9e7a] outline-none focus:border-[#1a4a2e]/50 transition"
         />
         {search && (
           <button
@@ -522,7 +522,7 @@ export default function SupportPage() {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
               activeCategory === cat
                 ? "bg-[#1a4a2e] text-[#f5f0e8] border-[#1a4a2e]"
                 : "bg-white text-[#4a6741] border-[#1a4a2e]/20 hover:border-[#1a4a2e]/40 hover:text-[#1a2e1a]"
@@ -612,7 +612,7 @@ export default function SupportPage() {
             <button
               key={issue.id}
               onClick={() => setOpenIssue(openIssue === issue.id ? null : issue.id)}
-              className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all duration-150 group ${
+              className={`w-full text-left flex items-center gap-4 px-5 py-5 rounded-2x1 border transition-all duration-150 group ${
                 openIssue === issue.id
                   ? "bg-[#1a4a2e]/5 border-[#1a4a2e]/30"
                   : "bg-white border-[#1a4a2e]/15 hover:border-[#1a4a2e]/30 hover:bg-[#ede8df]/40"
@@ -624,8 +624,8 @@ export default function SupportPage() {
                 {categoryIcons[issue.category]}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#1a2e1a] truncate">{issue.title}</p>
-                <p className="text-xs text-[#7a9e7a] mt-0.5 truncate">{issue.cause}</p>
+                <p className="text-base font-bold text-[#1a2e1a] truncate">{issue.title}</p>
+                <p className="text-sm text-[#7a9e7a] mt-1 truncate">{issue.cause}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider text-[#7a9e7a] border border-[#1a4a2e]/15 rounded-md px-2 py-0.5">
