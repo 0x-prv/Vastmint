@@ -9,6 +9,7 @@ import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const steps = ["Details", "Upload", "Deploy", "Success"];
 const BROWSER_UPLOAD_LIMIT = 200;
+const PINATA_FILE_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
 type DeployState = "idle" | "uploading" | "switching" | "pending" | "confirming" | "success" | "error";
 type UploadMode = "browser" | "ipfs";
@@ -18,6 +19,64 @@ type TokenMetadata = {
   description: string;
   attributes: { trait_type: string; value: string }[];
 };
+
+type PinataCredentials = {
+  apiKey: string;
+  apiSecret: string;
+};
+
+async function getPinataCredentials(): Promise<PinataCredentials> {
+  const res = await fetch("/api/pinata/key");
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = data?.error ?? `HTTP ${res.status}`;
+    throw new Error(`Pinata credentials request failed: ${detail}`);
+  }
+
+  if (typeof data.apiKey !== "string" || typeof data.apiSecret !== "string") {
+    throw new Error("Pinata credentials response was invalid.");
+  }
+
+  return { apiKey: data.apiKey, apiSecret: data.apiSecret };
+}
+
+function getPinataCredentialHeaders(credentials: PinataCredentials) {
+  return {
+    pinata_api_key: credentials.apiKey,
+    pinata_secret_api_key: credentials.apiSecret,
+  };
+}
+
+function formatPinataErrorDetail(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") return JSON.stringify(detail);
+  return "Unknown error";
+}
+
+async function uploadFormDataToPinata(
+  formData: FormData,
+  credentials: PinataCredentials,
+  errorPrefix: string
+): Promise<string> {
+  const res = await fetch(PINATA_FILE_URL, {
+    method: "POST",
+    headers: getPinataCredentialHeaders(credentials),
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = data?.error ?? data?.details ?? `HTTP ${res.status}`;
+    throw new Error(`${errorPrefix}: ${formatPinataErrorDetail(detail)}`);
+  }
+
+  if (typeof data.IpfsHash !== "string") {
+    throw new Error(`${errorPrefix}: Pinata response did not include an IPFS hash.`);
+  }
+
+  return data.IpfsHash;
+}
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
@@ -152,47 +211,43 @@ export default function LaunchpadCreatePage() {
     };
     reader.readAsText(file);
   }
-// Upload single file to Pinata (cover image)
+
+  // Upload single file to Pinata (cover image)
   async function uploadCoverToPinata(file: File): Promise<string | null> {
     try {
+      const credentials = await getPinataCredentials();
       const formData = new FormData();
       formData.append("file", file);
       formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-cover` }));
-      const res = await fetch("/api/pinata/file", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Cover upload failed");
-      const data = await res.json();
-      return data.IpfsHash as string;
+      return await uploadFormDataToPinata(formData, credentials, "Cover upload failed");
     } catch { return null; }
   }
-  // Upload single file to Pinata (cover image)
+  // Upload image folder directly to Pinata from the browser
   async function uploadImageFolderToPinata(files: File[]): Promise<string | null> {
-  try {
-    const formData = new FormData();
-    files.forEach((file, i) => {
-      const ext = file.name.split(".").pop() ?? "png";
-      formData.append("file", file, `${i + 1}.${ext}`);
-    });
-    formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-images` }));
-    const res = await fetch("/api/pinata/folder", { method: "POST", body: formData });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const detail = data?.error ?? data?.details ?? `HTTP ${res.status}`;
-      throw new Error(`Folder upload failed: ${detail}`);
+    try {
+      const credentials = await getPinataCredentials();
+      const formData = new FormData();
+      files.forEach((file, i) => {
+        const ext = file.name.split(".").pop() ?? "png";
+        formData.append("file", file, `${i + 1}.${ext}`);
+      });
+      formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-images` }));
+      formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
+      return await uploadFormDataToPinata(formData, credentials, "Folder upload failed");
+    } catch (err) {
+      console.error("uploadImageFolderToPinata:", err);
+      setErrorMsg(err instanceof Error ? err.message : "Image folder upload failed.");
+      return null;
     }
-    return data.IpfsHash as string;
-  } catch (err) {
-    console.error("uploadImageFolderToPinata:", err);
-    setErrorMsg(err instanceof Error ? err.message : "Image folder upload failed.");
-    return null;
   }
-}
-  // Upload metadata JSON folder as one Pinata call
+  // Upload metadata JSON folder as one direct Pinata call
   async function uploadMetadataFolder(
     imageFolderCid: string,
     totalTokens: number,
     coverCid: string
   ): Promise<string | null> {
     try {
+      const credentials = await getPinataCredentials();
       const formData = new FormData();
       for (let i = 0; i < totalTokens; i++) {
         const csvToken = tokenMetadata[i] ?? null;
@@ -210,10 +265,8 @@ export default function LaunchpadCreatePage() {
         formData.append("file", new File([blob], `${i}.json`, { type: "application/json" }), `${i}.json`);
       }
       formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-metadata` }));
-      const res = await fetch("/api/pinata/folder", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Metadata folder upload failed");
-      const data = await res.json();
-      return data.IpfsHash as string;
+      formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
+      return await uploadFormDataToPinata(formData, credentials, "Metadata folder upload failed");
     } catch { return null; }
   }
 
