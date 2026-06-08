@@ -521,6 +521,8 @@ export default function LaunchpadCreatePage() {
               </div>
 
               {/* IPFS Guide — Step by step */}
+              {uploadMode === "ipfs" && (
+  <div className="space-y-5">
 <div className="rounded-2xl border border-[#1a4a2e]/20 bg-[#e0dbd0]/50 overflow-hidden">
   <div className="px-4 py-3 border-b border-[#1a4a2e]/10">
     <p className="text-xs font-bold text-[#1a4a2e] uppercase tracking-widest">How to prepare your IPFS folder</p>
