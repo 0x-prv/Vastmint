@@ -82,6 +82,16 @@ function slugify(text: string) {
   return text.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
 }
 
+function getFileExtension(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  const ext = dotIndex >= 0 ? fileName.slice(dotIndex + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+  return ext || "png";
+}
+
+function getCollectionFolderName(collectionName: string) {
+  return slugify(collectionName) || "collection";
+}
+
 function parseCSV(csvText: string, collectionName: string): TokenMetadata[] {
   const lines = csvText.trim().split("\n").filter(Boolean);
   if (lines.length < 2) return [];
@@ -227,12 +237,13 @@ export default function LaunchpadCreatePage() {
     try {
       const credentials = await getPinataCredentials();
       const formData = new FormData();
+      const folderName = getCollectionFolderName(name);
       files.forEach((file, i) => {
-        const ext = file.name.split(".").pop() ?? "png";
-        formData.append("file", file, `${i + 1}.${ext}`);
+        const ext = getFileExtension(file.name);
+        formData.append("file", file, `${folderName}/${i + 1}.${ext}`);
       });
-      formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-images` }));
       formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
+      formData.append("pinataMetadata", JSON.stringify({ name: `${folderName}-images` }));
       return await uploadFormDataToPinata(formData, credentials, "Folder upload failed");
     } catch (err) {
       console.error("uploadImageFolderToPinata:", err);
@@ -249,13 +260,14 @@ export default function LaunchpadCreatePage() {
     try {
       const credentials = await getPinataCredentials();
       const formData = new FormData();
+      const folderName = getCollectionFolderName(name);
       for (let i = 0; i < totalTokens; i++) {
         const csvToken = tokenMetadata[i] ?? null;
-        const ext = imageFiles[0]?.name.split(".").pop() ?? "png";
+        const ext = getFileExtension(imageFiles[i]?.name ?? imageFiles[0]?.name ?? "");
         const metadata = {
           name: csvToken?.name ?? `${name} #${i + 1}`,
           description: csvToken?.description ?? description,
-          image: `ipfs://${imageFolderCid}/${i + 1}.${ext}`,
+          image: `ipfs://${imageFolderCid}/${folderName}/${i + 1}.${ext}`,
           attributes: [
             { trait_type: "Collection", value: name },
             ...(csvToken?.attributes ?? []),
