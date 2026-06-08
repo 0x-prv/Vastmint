@@ -23,12 +23,12 @@ const visibleCollections = factoryCollections ?? [];
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#1a4a2e]/5 rounded-full blur-[140px]" />
       </div>
 
-      <div className="relative max-w-4xl mx-auto">
-        <div className="mb-10">
-          <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em] mb-2">VastMint</p>
-          <h1 className="text-4xl font-black">Collections</h1>
-          <p className="text-[#4a6741] text-sm mt-2">Explore NFT collections deployed on Ritual Testnet.</p>
-        </div>
+      <div className="relative max-w-7xl mx-auto">
+  <div className="mb-10">
+    <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em] mb-2">VastMint</p>
+    <h1 className="text-5xl md:text-6xl font-black leading-tight">Collections.</h1>
+    <p className="text-[#4a6741] mt-4 max-w-xl text-sm leading-relaxed">Explore NFT collections deployed on Ritual Testnet.</p>
+  </div>
 
         <div className="space-y-4">
           {factoryLoading && (
@@ -44,7 +44,7 @@ const visibleCollections = factoryCollections ?? [];
             return (
               <div key={col.contractAddress} className="rounded-2xl border border-[#1a4a2e]/20 bg-[#ede8df] overflow-hidden hover:border-[#1a4a2e]/40 transition-all duration-300">
                 <div className="flex flex-col sm:flex-row gap-0">
-                  <div className="sm:w-56 sm:h-auto h-48 bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center relative flex-shrink-0">
+                  <div className="sm:w-72 sm:h-auto h-56 bg-gradient-to-br from-[#e8e3d8] via-[#e0dbd0] to-[#e0dbd0] flex items-center justify-center relative flex-shrink-0">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-32 h-32 rounded-full border border-[#1a4a2e]/10 animate-ping" style={{ animationDuration: "4s" }} />
                     </div>
