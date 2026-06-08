@@ -21,6 +21,8 @@ import {
 import { VASTMINT_NFT_ABI, VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
+const ZERO_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
 
 type MintState =
   | "idle"
@@ -114,6 +116,14 @@ const { data: whitelistPrice } = useReadContract({
   query: { enabled: !!contractAddress },
 });
 
+const { data: whitelistRoot } = useReadContract({
+  address: contractAddress,
+  abi: VASTMINT_NFT_ABI,
+  functionName: "whitelistRoot",
+  chainId: RITUAL_CHAIN_ID,
+  query: { enabled: !!contractAddress },
+});
+
 const { data: maxPerWallet } = useReadContract({
   address: contractAddress,
   abi: VASTMINT_NFT_ABI,
@@ -188,16 +198,33 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
         setMintState("error");
         return;
       }
+      if (phaseNumber === 1) {
+        if (whitelistPrice === undefined || whitelistRoot === undefined) {
+          setErrorMsg("Whitelist mint data is still loading. Please try again.");
+          setMintState("error");
+          return;
+        }
+
+        if (whitelistRoot === ZERO_BYTES32) {
+          setErrorMsg("Whitelist is not configured for this collection.");
+          setMintState("error");
+          return;
+        }
+
+        setErrorMsg(
+          "Whitelist proof data is not available in the current VastMint frontend flow. Ask the creator to switch to public mint or publish a supported proof source."
+        );
+        setMintState("error");
+        return;
+      }
+
 const tx = await writeContractAsync({
   address: contractAddress,
   abi: VASTMINT_NFT_ABI,
-  functionName: phaseNumber === 1 ? "whitelistMint" : "mintNFT",
-  args: phaseNumber === 1
-    ? [address, [] as `0x${string}`[]]
-    : [address],
-  value: phaseNumber === 1
-    ? (whitelistPrice as bigint)
-    : (mintPrice as bigint),
+  functionName: "mintNFT",
+  args: [address],
+  value: mintPrice as bigint,
+  type: "legacy",
   gasPrice: parseGwei("1"),
 });
       setTxHash(tx);

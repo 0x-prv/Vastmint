@@ -55,6 +55,13 @@ export const VASTMINT_NFT_ABI = [
   },
   {
     type: "function",
+    name: "whitelistRoot",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
     name: "maxPerWallet",
     stateMutability: "view",
     inputs: [],
