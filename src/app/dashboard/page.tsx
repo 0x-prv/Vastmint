@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatEther, parseAbiItem, parseEther } from "viem";
+import type { PublicClient } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -79,6 +80,62 @@ function listingKey(contractAddress: string, tokenId: bigint) {
 }
 
 const metadataCache = new Map<string, TokenMeta>();
+
+const tokenSupplyAbi = [
+  {
+    type: "function",
+    name: "nextTokenId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "totalSupply",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+async function readMintedSupply(
+  publicClient: PublicClient,
+  contractAddress: `0x${string}`
+): Promise<bigint> {
+  try {
+    const nextTokenId = await publicClient.readContract({
+      address: contractAddress,
+      abi: tokenSupplyAbi,
+      functionName: "nextTokenId",
+    });
+    return nextTokenId;
+  } catch {
+    const totalSupply = await publicClient.readContract({
+      address: contractAddress,
+      abi: VASTMINT_NFT_ABI,
+      functionName: "totalSupply",
+    });
+    return totalSupply;
+  }
+}
+
+async function readTokenOwner(
+  publicClient: PublicClient,
+  contractAddress: `0x${string}`,
+  tokenId: bigint
+): Promise<`0x${string}` | null> {
+  try {
+    const owner = await publicClient.readContract({
+      address: contractAddress,
+      abi: VASTMINT_NFT_ABI,
+      functionName: "ownerOf",
+      args: [tokenId],
+    });
+    return owner;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchTokenMeta(tokenURI: string): Promise<TokenMeta> {
   if (metadataCache.has(tokenURI)) return metadataCache.get(tokenURI)!;
@@ -379,62 +436,134 @@ export default function DashboardPage() {
       setOwnershipError(null);
 
       try {
-        const nextOwned: OwnedNFT[] = [];
+        const ownedByKey = new Map<string, OwnedNFT>();
         const wallet = address.toLowerCase();
         let failedScans = 0;
+        let failedOwnerFallbacks = 0;
 
-        const scanResults = await Promise.allSettled(
+        const collectionResults = await Promise.allSettled(
           allCollections.map(async (collection) => {
-            const [incoming, outgoing] = await Promise.all([
-              getLogsInSafeChunks(publicClient, {
-                address: collection.contractAddress,
-                event: transferEvent,
-                args: { to: address },
-              }),
-              getLogsInSafeChunks(publicClient, {
-                address: collection.contractAddress,
-                event: transferEvent,
-                args: { from: address },
-              }),
-            ]);
-
-            const events = [...incoming, ...outgoing].sort((a, b) => {
-              if (a.blockNumber !== b.blockNumber)
-                return a.blockNumber < b.blockNumber ? -1 : 1;
-              return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
-            });
-
             const ownedSet = new Set<string>();
-            for (const event of events) {
-              const from = typeof event.args.from === "string"
-                ? event.args.from.toLowerCase() : undefined;
-              const to = typeof event.args.to === "string"
-                ? event.args.to.toLowerCase() : undefined;
-              const tokenId = event.args.tokenId;
-              if (typeof tokenId !== "bigint") continue;
-              if (from === wallet) ownedSet.delete(tokenId.toString());
-              if (to === wallet) ownedSet.add(tokenId.toString());
+            let logScanFailed = false;
+            let ownerFallbackFailed = false;
+
+            try {
+              const [incoming, outgoing] = await Promise.all([
+                getLogsInSafeChunks(publicClient, {
+                  address: collection.contractAddress,
+                  event: transferEvent,
+                  args: { to: address },
+                }),
+                getLogsInSafeChunks(publicClient, {
+                  address: collection.contractAddress,
+                  event: transferEvent,
+                  args: { from: address },
+                }),
+              ]);
+
+              const events = [...incoming, ...outgoing].sort((a, b) => {
+                if (a.blockNumber !== b.blockNumber)
+                  return a.blockNumber < b.blockNumber ? -1 : 1;
+                return a.logIndex < b.logIndex ? -1 : a.logIndex > b.logIndex ? 1 : 0;
+              });
+
+              for (const event of events) {
+                const from = typeof event.args.from === "string"
+                  ? event.args.from.toLowerCase() : undefined;
+                const to = typeof event.args.to === "string"
+                  ? event.args.to.toLowerCase() : undefined;
+                const tokenId = event.args.tokenId;
+                if (typeof tokenId !== "bigint") continue;
+                if (from === wallet) ownedSet.delete(tokenId.toString());
+                if (to === wallet) ownedSet.add(tokenId.toString());
+              }
+            } catch (err) {
+              logScanFailed = true;
+              console.error(
+                "Unable to scan Transfer logs",
+                collection.contractAddress,
+                err
+              );
             }
 
-            return { collection, ownedSet };
+            try {
+              const mintedSupply = await readMintedSupply(
+                publicClient,
+                collection.contractAddress
+              );
+              if (mintedSupply > 0n) {
+                const zeroOwner = await readTokenOwner(
+                  publicClient,
+                  collection.contractAddress,
+                  0n
+                );
+                const startsAtZero = zeroOwner !== null;
+
+                if (zeroOwner?.toLowerCase() === wallet) {
+                  ownedSet.add("0");
+                } else if (zeroOwner !== null) {
+                  ownedSet.delete("0");
+                }
+
+                // Token 0 was probed above. VastMint collections are 0-based,
+                // while imported ERC-721s may be 1-based. Scan the matching range.
+                const lastTokenId = startsAtZero ? mintedSupply - 1n : mintedSupply;
+
+                for (let tokenId = 1n; tokenId <= lastTokenId; tokenId++) {
+                  const owner = await readTokenOwner(
+                    publicClient,
+                    collection.contractAddress,
+                    tokenId
+                  );
+                  const tokenKey = tokenId.toString();
+
+                  if (owner?.toLowerCase() === wallet) {
+                    ownedSet.add(tokenKey);
+                  } else if (owner !== null) {
+                    ownedSet.delete(tokenKey);
+                  }
+                }
+              }
+            } catch (err) {
+              ownerFallbackFailed = true;
+              console.error(
+                "Unable to verify owners with ownerOf",
+                collection.contractAddress,
+                err
+              );
+            }
+
+            return { collection, ownedSet, logScanFailed, ownerFallbackFailed };
           })
         );
 
-        for (const result of scanResults) {
+        for (const result of collectionResults) {
           if (result.status === "fulfilled") {
-            const { collection, ownedSet } = result.value;
+            const {
+              collection,
+              ownedSet,
+              logScanFailed,
+              ownerFallbackFailed,
+            } = result.value;
+            if (logScanFailed) failedScans += 1;
+            if (ownerFallbackFailed) failedOwnerFallbacks += 1;
+
             for (const tokenId of ownedSet) {
-              nextOwned.push({
+              const nft: OwnedNFT = {
                 contractAddress: collection.contractAddress,
                 tokenId: BigInt(tokenId),
                 collection,
-              });
+              };
+              ownedByKey.set(listingKey(nft.contractAddress, nft.tokenId), nft);
             }
           } else {
             failedScans += 1;
+            failedOwnerFallbacks += 1;
             console.error("Unable to scan collection", result.reason);
           }
         }
+
+        const nextOwned = Array.from(ownedByKey.values());
 
         nextOwned.sort((a, b) => {
           const cc = a.collection.name.localeCompare(b.collection.name);
@@ -444,9 +573,9 @@ export default function DashboardPage() {
 
         if (!cancelled) {
           setOwnedNfts(nextOwned);
-          if (failedScans > 0) {
+          if (failedScans > 0 || failedOwnerFallbacks > 0) {
             setOwnershipError(
-              `Some NFT collections could not be scanned (${failedScans}/${allCollections.length}). Showing available results.`
+              `Some NFT collections could not be fully scanned (logs: ${failedScans}/${allCollections.length}, ownerOf: ${failedOwnerFallbacks}/${allCollections.length}). Showing available results.`
             );
           }
         }
