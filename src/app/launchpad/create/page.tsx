@@ -152,8 +152,7 @@ export default function LaunchpadCreatePage() {
     };
     reader.readAsText(file);
   }
-
-  // Upload single file to Pinata (cover image)
+// Upload single file to Pinata (cover image)
   async function uploadCoverToPinata(file: File): Promise<string | null> {
     try {
       const formData = new FormData();
@@ -165,24 +164,28 @@ export default function LaunchpadCreatePage() {
       return data.IpfsHash as string;
     } catch { return null; }
   }
-
-  // Upload entire image folder as one Pinata call
+  // Upload single file to Pinata (cover image)
   async function uploadImageFolderToPinata(files: File[]): Promise<string | null> {
-    try {
-      const formData = new FormData();
-      files.forEach((file, i) => {
-        // Rename to sequential numbers: 1.png, 2.png, etc.
-        const ext = file.name.split(".").pop() ?? "png";
-        formData.append("file", file, `${i + 1}.${ext}`);
-      });
-      formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-images` }));
-      const res = await fetch("/api/pinata/folder", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Image folder upload failed");
-      const data = await res.json();
-      return data.IpfsHash as string;
-    } catch { return null; }
+  try {
+    const formData = new FormData();
+    files.forEach((file, i) => {
+      const ext = file.name.split(".").pop() ?? "png";
+      formData.append("file", file, `${i + 1}.${ext}`);
+    });
+    formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-images` }));
+    const res = await fetch("/api/pinata/folder", { method: "POST", body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data?.error ?? data?.details ?? `HTTP ${res.status}`;
+      throw new Error(`Folder upload failed: ${detail}`);
+    }
+    return data.IpfsHash as string;
+  } catch (err) {
+    console.error("uploadImageFolderToPinata:", err);
+    setErrorMsg(err instanceof Error ? err.message : "Image folder upload failed.");
+    return null;
   }
-
+}
   // Upload metadata JSON folder as one Pinata call
   async function uploadMetadataFolder(
     imageFolderCid: string,
@@ -273,7 +276,7 @@ export default function LaunchpadCreatePage() {
         // Step 2: Upload ALL images as one folder (single Pinata call)
         setUploadStep(`Uploading ${totalTokens} images to IPFS...`);
         const imageFolderCid = await uploadImageFolderToPinata(imageFiles);
-        if (!imageFolderCid) { setErrorMsg("Image folder upload failed. Please try again."); setDeployState("error"); return; }
+        if (!imageFolderCid) { setDeployState("error"); return; }
         setUploadProgress(60);
 
         // Step 3: Generate + upload metadata folder
