@@ -1,12 +1,12 @@
 const PINATA_FILE_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
-const MAX_FILES = 100;
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_TOTAL_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_FILES = 10000;                        // was 100 → now supports 10k supply
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;   // 10MB per file
+const MAX_TOTAL_SIZE_BYTES = 500 * 1024 * 1024; // was 100MB → now 500MB total
 const MAX_METADATA_LENGTH = 1000;
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_MAX = 10;           // was 3 → now 10 per window
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 function getClientIp(request: Request): string {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     let totalSize = 0;
 
     for (const [key, value] of entries) {
-      if (key === "pinataMetadata") continue;
+      if (key === "pinataMetadata" || key === "pinataOptions") continue;
 
       if (value instanceof File) {
         fileCount++;
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
         if (totalSize > MAX_TOTAL_SIZE_BYTES) {
           return Response.json(
-            { error: `Total upload size must be 100MB or smaller.` },
+            { error: `Total upload size must be 500MB or smaller.` },
             { status: 400 }
           );
         }
