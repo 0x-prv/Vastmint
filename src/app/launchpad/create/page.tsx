@@ -253,6 +253,7 @@ export default function LaunchpadCreatePage() {
   }
   // Upload metadata JSON folder as one direct Pinata call
   async function uploadMetadataFolder(
+<<<<<<< HEAD
     imageFolderCid: string,
     totalTokens: number,
     coverCid: string
@@ -280,7 +281,80 @@ export default function LaunchpadCreatePage() {
       formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
       return await uploadFormDataToPinata(formData, credentials, "Metadata folder upload failed");
     } catch { return null; }
+=======
+  imageFolderCid: string,
+  totalTokens: number,
+  coverCid: string
+): Promise<string | null> {
+  try {
+    const credentials = await getPinataCredentials();
+
+    const formData = new FormData();
+    const folderName = slugify(name) || "metadata";
+
+    for (let i = 0; i < totalTokens; i++) {
+      const csvToken = tokenMetadata[i] ?? null;
+      const ext = imageFiles[0]?.name.split(".").pop() ?? "png";
+
+      const metadata = {
+        name: csvToken?.name ?? `${name} #${i + 1}`,
+        description: csvToken?.description ?? description,
+        image: `ipfs://${imageFolderCid}/${i + 1}.${ext}`,
+        attributes: [
+          {
+            trait_type: "Collection",
+            value: name,
+          },
+          ...(csvToken?.attributes ?? []),
+        ],
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(metadata)],
+        { type: "application/json" }
+      );
+
+      formData.append(
+        "file",
+        new File(
+          [blob],
+          `${folderName}/${i}.json`,
+          { type: "application/json" }
+        ),
+        `${folderName}/${i}.json`
+      );
+    }
+
+    formData.append(
+      "pinataMetadata",
+      JSON.stringify({
+        name: `${slugify(name)}-metadata`,
+      })
+    );
+
+    formData.append(
+      "pinataOptions",
+      JSON.stringify({
+        wrapWithDirectory: true,
+      })
+    );
+
+    return await uploadFormDataToPinata(
+      formData,
+      credentials,
+      "Metadata folder upload failed"
+    );
+  } catch (err) {
+    console.error("uploadMetadataFolder:", err);
+    setErrorMsg(
+      err instanceof Error
+        ? err.message
+        : "Metadata folder upload failed."
+    );
+    return null;
+>>>>>>> 475351d (fix: complete metadata folder upload with correct file paths)
   }
+}
 
   async function handleDeploy() {
     if (!address || !isConnected) return;
