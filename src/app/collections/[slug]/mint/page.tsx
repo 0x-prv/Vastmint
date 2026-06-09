@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatEther } from "viem";
-import { parseGwei } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -246,8 +245,7 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
           functionName: "whitelistMint",
           args: [address, proof],
           value: whitelistPrice as bigint,
-          type: "legacy",
-          gasPrice: parseGwei("1"),
+
         });
 
         setTxHash(tx);
@@ -258,11 +256,13 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
 const tx = await writeContractAsync({
   address: contractAddress,
   abi: VASTMINT_NFT_ABI,
-  functionName: "mintNFT",
-  args: [address],
-  value: mintPrice as bigint,
-  type: "legacy",
-  gasPrice: parseGwei("1"),
+  functionName: phaseNumber === 1 ? "whitelistMint" : "mintNFT",
+  args: phaseNumber === 1
+    ? [address, [] as `0x${string}`[]]
+    : [address],
+  value: phaseNumber === 1
+    ? (whitelistPrice as bigint)
+    : (mintPrice as bigint),
 });
       setTxHash(tx);
       setMintState("confirming");

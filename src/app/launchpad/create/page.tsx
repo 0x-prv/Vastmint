@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useWaitForTransactionReceipt } from "wagmi";
 import { encodePacked, isAddress, keccak256, parseEther } from "viem";
-import { parseGwei } from "viem";
 import { VASTMINT_FACTORY_ADDRESS, RITUAL_CHAIN_ID } from "@/lib/blockchain/contracts";
 import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
@@ -422,8 +421,6 @@ export default function LaunchpadCreatePage() {
     whitelistProofData.root,
     slug,
   ],
-  type: "legacy",
-  gasPrice: parseGwei("1"),
 });
 
       setTxHash(tx);
