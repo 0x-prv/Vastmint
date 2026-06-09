@@ -10,7 +10,6 @@ import { VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
 
 const steps = ["Details", "Upload", "Deploy", "Success"];
 const BROWSER_UPLOAD_LIMIT = 200;
-const PINATA_FILE_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
 
 type Hex = `0x${string}`;
@@ -30,48 +29,19 @@ type TokenMetadata = {
   attributes: { trait_type: string; value: string }[];
 };
 
-type PinataCredentials = {
-  apiKey: string;
-  apiSecret: string;
-};
-
-async function getPinataCredentials(): Promise<PinataCredentials> {
-  const res = await fetch("/api/pinata/key");
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    const detail = data?.error ?? `HTTP ${res.status}`;
-    throw new Error(`Pinata credentials request failed: ${detail}`);
-  }
-
-  if (typeof data.apiKey !== "string" || typeof data.apiSecret !== "string") {
-    throw new Error("Pinata credentials response was invalid.");
-  }
-
-  return { apiKey: data.apiKey, apiSecret: data.apiSecret };
-}
-
-function getPinataCredentialHeaders(credentials: PinataCredentials) {
-  return {
-    pinata_api_key: credentials.apiKey,
-    pinata_secret_api_key: credentials.apiSecret,
-  };
-}
-
 function formatPinataErrorDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
   if (detail && typeof detail === "object") return JSON.stringify(detail);
   return "Unknown error";
 }
 
-async function uploadFormDataToPinata(
+async function uploadFormDataToPinataRoute(
+  route: "/api/pinata/file" | "/api/pinata/folder",
   formData: FormData,
-  credentials: PinataCredentials,
   errorPrefix: string
 ): Promise<string> {
-  const res = await fetch(PINATA_FILE_URL, {
+  const res = await fetch(route, {
     method: "POST",
-    headers: getPinataCredentialHeaders(credentials),
     body: formData,
   });
   const data = await res.json().catch(() => ({}));
@@ -96,10 +66,6 @@ function getFileExtension(fileName: string) {
   const dotIndex = fileName.lastIndexOf(".");
   const ext = dotIndex >= 0 ? fileName.slice(dotIndex + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
   return ext || "png";
-}
-
-function getCollectionFolderName(collectionName: string) {
-  return slugify(collectionName) || "collection";
 }
 
 function parseCSV(csvText: string, collectionName: string): TokenMetadata[] {
@@ -295,47 +261,43 @@ export default function LaunchpadCreatePage() {
     reader.readAsText(file);
   }
 
-  // Upload single file to Pinata (cover image)
+  // Upload single file through the server-side Pinata route (cover image)
   async function uploadCoverToPinata(file: File): Promise<string | null> {
     try {
-      const credentials = await getPinataCredentials();
       const formData = new FormData();
       formData.append("file", file);
       formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-cover` }));
-      return await uploadFormDataToPinata(formData, credentials, "Cover upload failed");
+      return await uploadFormDataToPinataRoute("/api/pinata/file", formData, "Cover upload failed");
     } catch { return null; }
   }
-  // Upload image folder directly to Pinata from the browser
+  // Upload image folder through the server-side Pinata route
   async function uploadImageFolderToPinata(files: File[]): Promise<string | null> {
     try {
-      const credentials = await getPinataCredentials();
       const formData = new FormData();
-      const folderName = getCollectionFolderName(name);
+      const folderName = slugify(name) || "collection";
       files.forEach((file, i) => {
         const ext = getFileExtension(file.name);
-        formData.append("file", file, `${folderName}/${i + 1}.${ext}`);
+        formData.append("file", file, `${i + 1}.${ext}`);
       });
       formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
       formData.append("pinataMetadata", JSON.stringify({ name: `${folderName}-images` }));
-      return await uploadFormDataToPinata(formData, credentials, "Folder upload failed");
+      return await uploadFormDataToPinataRoute("/api/pinata/folder", formData, "Folder upload failed");
     } catch (err) {
       console.error("uploadImageFolderToPinata:", err);
       setErrorMsg(err instanceof Error ? err.message : "Image folder upload failed.");
       return null;
     }
   }
-  // Upload metadata JSON folder as one direct Pinata call
+  // Upload metadata JSON folder through the server-side Pinata route
   async function uploadMetadataFolder(
     imageFolderCid: string,
-    totalTokens: number,
-    coverCid: string
+    totalTokens: number
   ): Promise<string | null> {
     try {
-      const credentials = await getPinataCredentials();
       const formData = new FormData();
       for (let i = 0; i < totalTokens; i++) {
         const csvToken = tokenMetadata[i] ?? null;
-        const ext = imageFiles[0]?.name.split(".").pop() ?? "png";
+        const ext = getFileExtension(imageFiles[i]?.name ?? "");
         const metadata = {
           name: csvToken?.name ?? `${name} #${i + 1}`,
           description: csvToken?.description ?? description,
@@ -350,7 +312,7 @@ export default function LaunchpadCreatePage() {
       }
       formData.append("pinataMetadata", JSON.stringify({ name: `${slugify(name)}-metadata` }));
       formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
-      return await uploadFormDataToPinata(formData, credentials, "Metadata folder upload failed");
+      return await uploadFormDataToPinataRoute("/api/pinata/folder", formData, "Metadata folder upload failed");
     } catch { return null; }
   }
 
@@ -429,7 +391,7 @@ export default function LaunchpadCreatePage() {
 
         // Step 3: Generate + upload metadata folder
         setUploadStep("Generating metadata...");
-        const metadataFolderCid = await uploadMetadataFolder(imageFolderCid, totalTokens, coverCid);
+        const metadataFolderCid = await uploadMetadataFolder(imageFolderCid, totalTokens);
         if (!metadataFolderCid) { setErrorMsg("Metadata upload failed. Please try again."); setDeployState("error"); return; }
         setUploadProgress(90);
 
@@ -1044,8 +1006,14 @@ export default function LaunchpadCreatePage() {
               </div>
               <h2 className="text-2xl font-black">Collection Deployed! 🎉</h2>
               <p className="text-[#4a6741] text-sm mt-2 max-w-xs leading-relaxed">
-                Your NFT collection is live on Ritual Testnet. Share the mint page!
+                Your NFT collection is deployed on Ritual Testnet. Set the mint phase in your dashboard before sharing the mint page.
               </p>
+              <div className="mt-5 w-full rounded-xl border border-yellow-700/40 bg-yellow-900/10 px-4 py-3 text-left">
+                <p className="text-yellow-700 text-sm font-bold">Minting is paused by default</p>
+                <p className="text-[#4a6741] text-xs mt-1 leading-relaxed">
+                  Go to Dashboard → My Collections and switch this collection to Public or Whitelist before inviting testers to mint.
+                </p>
+              </div>
               {txHash && (
                 <div className="mt-5 w-full rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/30 p-4 text-left">
                   <p className="text-[#7a9e7a] text-xs mb-1">Transaction Hash</p>

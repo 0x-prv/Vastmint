@@ -32,12 +32,12 @@ Open http://localhost:3000 to view the app.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| PINATA_API_KEY | Yes | Pinata API key for browser-direct IPFS uploads |
-| PINATA_API_SECRET | Yes | Pinata API secret for browser-direct IPFS uploads |
+| PINATA_JWT | Yes | Pinata JWT used only by server-side upload routes |
 | NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID | Yes | WalletConnect project ID |
 | PRIVATE_KEY | For deployment | Wallet private key for Hardhat deploy |
 | RITUAL_RPC_URL | No | Defaults to https://rpc.ritualfoundation.org |
-| NEXT_PUBLIC_MARKETPLACE_ADDRESS | No | Override default marketplace address |
+| NEXT_PUBLIC_FACTORY_ADDRESS | Yes | Factory contract address for the active Ritual testnet deployment |
+| NEXT_PUBLIC_MARKETPLACE_ADDRESS | Yes | Marketplace contract address for the active Ritual testnet deployment |
 
 ## Smart Contracts
 
