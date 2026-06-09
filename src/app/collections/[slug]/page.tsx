@@ -241,7 +241,7 @@ export default function CollectionPage() {
   const { switchChainAsync } = useSwitchChain();
   const [buying, setBuying] = useState<bigint | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const [visibleCount, setVisibleCount] = useState(NFT_GRID_PAGE_SIZE);
+  const [visibleCountByView, setVisibleCountByView] = useState<Record<string, number>>({});
 
   const { data, isLoading } = useReadContract({
     address: VASTMINT_FACTORY_ADDRESS as `0x${string}`,
@@ -303,6 +303,8 @@ export default function CollectionPage() {
     return ids;
   }, [activeListings, filter, listingByTokenId]);
 
+  const displayViewKey = `${collection?.contractAddress ?? ""}:${filter}:${minted}`;
+  const visibleCount = visibleCountByView[displayViewKey] ?? NFT_GRID_PAGE_SIZE;
   const totalDisplayCount = filter === "all" ? minted : listedTokenIds.length;
   const visibleDisplayCount = Math.min(visibleCount, totalDisplayCount);
   const displayTokens = useMemo(() => {
@@ -314,9 +316,6 @@ export default function CollectionPage() {
   }, [filter, listedTokenIds, visibleDisplayCount]);
   const hasMoreTokens = visibleDisplayCount < totalDisplayCount;
 
-  useEffect(() => {
-    setVisibleCount(NFT_GRID_PAGE_SIZE);
-  }, [filter, collection?.contractAddress, minted]);
 
   async function handleBuy(listingId: bigint, price: bigint) {
     if (!address) return;
@@ -517,7 +516,10 @@ export default function CollectionPage() {
               <div className="mt-8 flex justify-center">
                 <button
                   onClick={() =>
-                    setVisibleCount((count) => count + NFT_GRID_PAGE_SIZE)
+                    setVisibleCountByView((counts) => ({
+                      ...counts,
+                      [displayViewKey]: (counts[displayViewKey] ?? NFT_GRID_PAGE_SIZE) + NFT_GRID_PAGE_SIZE,
+                    }))
                   }
                   className="rounded-xl border border-[#1a4a2e]/30 px-5 py-3 text-sm font-bold text-[#1a4a2e] hover:bg-[#1a4a2e]/10 transition"
                 >

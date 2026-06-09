@@ -188,8 +188,8 @@ export default function LaunchpadCreatePage() {
   const [maxPerWallet, setMaxPerWallet] = useState("1");
   const [whitelistAddressesInput, setWhitelistAddressesInput] = useState("");
 
-  // Step 1 - Upload mode (auto-set based on supply)
-  const [uploadMode, setUploadMode] = useState<UploadMode>("browser");
+  // Step 1 - Upload mode (forced to IPFS for high supply)
+  const [selectedUploadMode, setSelectedUploadMode] = useState<UploadMode>("browser");
 
   // Mode A — Browser Upload
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -221,13 +221,6 @@ export default function LaunchpadCreatePage() {
     displayDeployState === "switching" ||
     displayDeployState === "pending" ||
     displayDeployState === "confirming";
-
-  // Auto-switch upload mode based on supply
-  useEffect(() => {
-    const n = Number(supply);
-    if (n > BROWSER_UPLOAD_LIMIT) setUploadMode("ipfs");
-    else setUploadMode("browser");
-  }, [supply]);
 
   useEffect(() => {
     return () => { imagePreviews.forEach((url) => URL.revokeObjectURL(url)); };
@@ -459,6 +452,9 @@ export default function LaunchpadCreatePage() {
     }
   }
 
+  const isHighSupply = Number(supply) > BROWSER_UPLOAD_LIMIT;
+  const uploadMode: UploadMode = isHighSupply ? "ipfs" : selectedUploadMode;
+
   const canProceedStep0 =
     name.trim().length > 0 &&
     symbol.trim().length > 0 &&
@@ -473,8 +469,6 @@ export default function LaunchpadCreatePage() {
   const traitHeaders = tokenMetadata.length > 0
     ? Object.keys(tokenMetadata[0].attributes.reduce((acc, a) => ({ ...acc, [a.trait_type]: true }), {} as Record<string, boolean>))
     : [];
-
-  const isHighSupply = Number(supply) > BROWSER_UPLOAD_LIMIT;
 
   return (
     <main className="min-h-screen bg-[#f5f0e8] px-5 pt-6 pb-24 text-[#1a2e1a]">
@@ -625,7 +619,7 @@ export default function LaunchpadCreatePage() {
               {/* Mode toggle */}
               <div className="flex rounded-2xl border border-[#1a4a2e]/20 overflow-hidden">
                 <button
-                  onClick={() => setUploadMode("browser")}
+                  onClick={() => setSelectedUploadMode("browser")}
                   disabled={isHighSupply}
                   className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition ${
                     uploadMode === "browser"
@@ -636,7 +630,7 @@ export default function LaunchpadCreatePage() {
                   Browser Upload {!isHighSupply && `(≤${BROWSER_UPLOAD_LIMIT})`}
                 </button>
                 <button
-                  onClick={() => setUploadMode("ipfs")}
+                  onClick={() => setSelectedUploadMode("ipfs")}
                   className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition ${
                     uploadMode === "ipfs"
                       ? "bg-[#1a4a2e] text-[#f5f0e8]"
