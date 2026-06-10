@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 require("dotenv").config();
 require("@nomicfoundation/hardhat-toolbox");
 
@@ -22,5 +21,23 @@ module.exports = {
       chainId: 1979,
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
     },
+  },
+  etherscan: {
+    apiKey: {
+      ritual: "placeholder",
+    },
+    customChains: [
+      {
+        network: "ritual",
+        chainId: 1979,
+        urls: {
+          apiURL: "https://explorer.ritualfoundation.org/api",
+          browserURL: "https://explorer.ritualfoundation.org",
+        },
+      },
+    ],
+  },
+  sourcify: {
+    enabled: true,
   },
 };

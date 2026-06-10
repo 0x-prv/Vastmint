@@ -271,7 +271,7 @@ export default function LaunchpadCreatePage() {
         const ext = getFileExtension(file.name);
         formData.append("file", file, `${i + 1}.${ext}`);
       });
-      formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
+      formData.append("pinataOptions", JSON.stringify({ wrapWithDirectory: false }));
       formData.append("pinataMetadata", JSON.stringify({ name: `${folderName}-images` }));
       return await uploadFormDataToPinataRoute("/api/pinata/folder", formData, "Folder upload failed");
     } catch (err) {
