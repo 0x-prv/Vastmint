@@ -200,98 +200,103 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
     displayMintState === "confirming";
 
   
-     async function handleMint() {
-    if (!address || !contractAddress || !collection) return;
-    if (isSoldOut) return;
+   async function handleMint() {
+  if (!address || !contractAddress || !collection) return;
+  if (isSoldOut) return;
 
-    setErrorMsg(null);
+  setErrorMsg(null);
 
-    try {
-      if (isWrongNetwork) {
-        setMintState("switching");
-        await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
-      }
+  try {
+    if (isWrongNetwork) {
+      setMintState("switching");
+      await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
 
-      if (!isMintPriceLoaded) {
-        setErrorMsg("Mint price is still loading. Please try again.");
+    if (!isMintPriceLoaded) {
+      setErrorMsg("Mint price is still loading. Please try again.");
+      setMintState("error");
+      return;
+    }
+
+    setMintState("pending");
+
+    // WHITELIST PHASE
+    if (phaseNumber === 1) {
+      if (whitelistPrice === undefined || whitelistRoot === undefined) {
+        setErrorMsg("Whitelist mint data is still loading. Please try again.");
         setMintState("error");
         return;
       }
-      if (phaseNumber === 1) {
-        if (whitelistPrice === undefined || whitelistRoot === undefined) {
-          setErrorMsg("Whitelist mint data is still loading. Please try again.");
-          setMintState("error");
-          return;
-        }
 
-        if (whitelistRoot === ZERO_BYTES32) {
-          setErrorMsg("Whitelist is not configured for this collection.");
-          setMintState("error");
-          return;
-        }
-
-        const normalizedAddress = address.toLowerCase();
-        const proof = whitelistProofData?.proofs?.[normalizedAddress];
-
-        if (whitelistProofData?.root?.toLowerCase() !== (whitelistRoot as string).toLowerCase() || !Array.isArray(proof)) {
-          setErrorMsg("This wallet is not whitelisted.");
-          setMintState("error");
-          return;
-        }
-
-        const tx = await writeContractAsync({
-          address: contractAddress,
-          abi: VASTMINT_NFT_ABI,
-          functionName: "whitelistMint",
-          args: [address, proof],
-          value: whitelistPrice as bigint,
-
-        });
-
-        setTxHash(tx);
-        setMintState("confirming");
+      if (whitelistRoot === ZERO_BYTES32) {
+        setErrorMsg("Whitelist is not configured for this collection.");
+        setMintState("error");
         return;
       }
 
-const tx = await writeContractAsync({
-  address: contractAddress,
-  abi: VASTMINT_NFT_ABI,
-  functionName: phaseNumber === 1 ? "whitelistMint" : "mintNFT",
-  args: phaseNumber === 1
-    ? [address, [] as `0x${string}`[]]
-    : [address],
-  value: phaseNumber === 1
-    ? (whitelistPrice as bigint)
-    : (mintPrice as bigint),
-});
+      const normalizedAddress = address.toLowerCase();
+      const proof = whitelistProofData?.proofs?.[normalizedAddress];
+
+      if (
+        whitelistProofData?.root?.toLowerCase() !== (whitelistRoot as string).toLowerCase() ||
+        !Array.isArray(proof)
+      ) {
+        setErrorMsg("This wallet is not whitelisted.");
+        setMintState("error");
+        return;
+      }
+
+      const tx = await writeContractAsync({
+        address: contractAddress,
+        abi: VASTMINT_NFT_ABI,
+        functionName: "whitelistMint",
+        args: [address, proof],
+        value: whitelistPrice as bigint,
+      });
+
       setTxHash(tx);
       setMintState("confirming");
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Transaction failed";
-     const short =
-  message.includes("rejected") || message.includes("denied")
-    ? "Transaction rejected by wallet."
-    : message.includes("Metadata upload") || message.includes("Metadata CID")
-    ? "Metadata upload failed. Please try again."
-    : message.includes("insufficient funds")
-    ? "Insufficient funds. Please add more RITUAL to your wallet."
-    : message.includes("Wallet mint limit") || message.includes("mintCount")
-    ? "You have reached the maximum mint limit for this collection."
-    : message.includes("Max supply reached") || message.includes("sold out")
-    ? "This collection is sold out."
-    : message.includes("Public mint not active") || message.includes("Whitelist mint not active")
-    ? "Minting is not active for this phase."
-    : message.includes("Not whitelisted")
-    ? "Your wallet is not on the whitelist."
-    : message.includes("network") || message.includes("chain")
-    ? "Network error. Please switch to Ritual Testnet."
-    : "Mint failed. Please try again.";
-      setErrorMsg(short);
-      setMintState("error");
+      return;
     }
-  }
 
+    // PUBLIC PHASE
+    const tx = await writeContractAsync({
+      address: contractAddress,
+      abi: VASTMINT_NFT_ABI,
+      functionName: "mintNFT",
+      args: [address],
+      value: mintPrice as bigint,
+    });
+
+    setTxHash(tx);
+    setMintState("confirming");
+
+  } catch (err: unknown) {
+    console.error(err);
+    const message = err instanceof Error ? err.message : "Transaction failed";
+    const short =
+      message.includes("rejected") || message.includes("denied")
+        ? "Transaction rejected by wallet."
+        : message.includes("Metadata upload") || message.includes("Metadata CID")
+        ? "Metadata upload failed. Please try again."
+        : message.includes("insufficient funds")
+        ? "Insufficient funds. Please add more RITUAL to your wallet."
+        : message.includes("Wallet mint limit") || message.includes("mintCount")
+        ? "You have reached the maximum mint limit for this collection."
+        : message.includes("Max supply reached") || message.includes("sold out")
+        ? "This collection is sold out."
+        : message.includes("Public mint not active") || message.includes("Whitelist mint not active")
+        ? "Minting is not active for this phase."
+        : message.includes("Not whitelisted")
+        ? "Your wallet is not on the whitelist."
+        : message.includes("network") || message.includes("chain")
+        ? "Network error. Please switch to Ritual Testnet."
+        : "Mint failed. Please try again.";
+    setErrorMsg(short);
+    setMintState("error");
+  }
+}
     function reset() {
     setMintState("idle");
     setTxHash(undefined);
