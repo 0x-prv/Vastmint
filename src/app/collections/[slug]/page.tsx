@@ -28,11 +28,33 @@ const NFT_GRID_PAGE_SIZE = 24;
 
 function resolveIpfs(uri?: string | null): string | null {
   if (!uri) return null;
-  if (uri.startsWith("ipfs://")) return `${IPFS_GATEWAY}${uri.slice(7)}`;
-  return uri;
+
+  const cleanUri = uri.trim();
+
+  if (cleanUri.startsWith("ipfs://")) {
+    return `${IPFS_GATEWAY}${cleanUri.slice(7)}`;
+  }
+
+  if (cleanUri.startsWith("bafy") || cleanUri.startsWith("Qm")) {
+    return `${IPFS_GATEWAY}${cleanUri}`;
+  }
+
+  return cleanUri;
 }
 
-// Cache para hindi paulit-ulit mag-fetch ng same metadata
+  const cleanUri = uri.trim();
+
+  if (cleanUri.startsWith("ipfs://")) {
+    return `${IPFS_GATEWAY}${cleanUri.slice(7)}`;
+  }
+
+  if (cleanUri.startsWith("bafy") || cleanUri.startsWith("Qm")) {
+    return `${IPFS_GATEWAY}${cleanUri}`;
+  }
+
+  return cleanUri;
+}
+
 const metadataCache = new Map<string, TokenMeta>();
 
 type TokenMeta = {
