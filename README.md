@@ -1,62 +1,81 @@
 # VastMint
 
-A Ritual-native NFT launchpad and marketplace built on Ritual Testnet.
+The native NFT marketplace and launchpad built for Ritual.
+
+VastMint enables creators to launch collections, mint NFTs, and trade assets through a modern and seamless experience.
+
+## Features
+
+- NFT Marketplace
+- Collection Launchpad
+- Dynamic Collection Deployment
+- NFT Minting
+- Buy, List, and Cancel Listings
+- Collection Pages and NFT Details
+- Wallet Integration
+- IPFS Metadata Support
+- Responsive UI
+- Built with TypeScript and Next.js
 
 ## Tech Stack
 
-- **Frontend**: Next.js, React, Tailwind CSS
-- **Web3**: Wagmi v2, Viem v2, RainbowKit
-- **Chain**: Ritual Testnet (Chain ID 1979)
-- **Contracts**: Solidity 0.8.28, Hardhat, OpenZeppelin
-- **Storage**: Pinata IPFS
-
-## Getting Started
-
-### 1. Install dependencies
-
-npm install
-
-### 2. Set up environment variables
-
-cp .env.example .env.local
-
-Fill in the required values in .env.local
-
-### 3. Run the development server
-
-npm run dev
-
-Open http://localhost:3000 to view the app.
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| PINATA_JWT | Yes | Pinata JWT used only by server-side upload routes |
-| NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID | Yes | WalletConnect project ID |
-| PRIVATE_KEY | For deployment | Wallet private key for Hardhat deploy |
-| RITUAL_RPC_URL | No | Defaults to https://rpc.ritualfoundation.org |
-| NEXT_PUBLIC_FACTORY_ADDRESS | Yes | Factory contract address for the active Ritual testnet deployment |
-| NEXT_PUBLIC_MARKETPLACE_ADDRESS | Yes | Marketplace contract address for the active Ritual testnet deployment |
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Wagmi
+- Viem
+- RainbowKit
+- Hardhat
+- Ethers.js
+- Pinata IPFS
 
 ## Smart Contracts
 
-Deployed on Ritual Testnet (Chain ID 1979):
+- `VastMintNFT`
+- `VastMintFactory`
+- `VastMintMarketplace`
 
-| Contract | Address |
-|----------|---------|
-| VastMintNFT | 0x8EBa1c8A529F71e08CB23C0Cda9606eaA1Ac7067 |
-| VastMintFactory | 0x5b36c10990e7bAE1f9b92759600e3385058DfC44 |
-| VastMintMarketplace | 0x35CFdfD9D7372510Ff26876a5675754A7c343bf6 |
+## Getting Started
 
-## Scripts
+Clone the repository:
 
-npm run dev        # Start dev server
-npm run build      # Build for production
-npm run start      # Start production server
-npm run lint       # Run ESLint
+```bash
+git clone https://github.com/0x-prv/VastMint.git
+cd VastMint
+```
 
-## Contract Deployment
+Install dependencies:
 
-npx hardhat run scripts/deployFactory.js --network ritual
-npx hardhat run scripts/deployMarketplace.js --network ritual
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## Project Structure
+
+```
+app/
+components/
+contracts/
+hooks/
+lib/
+public/
+types/
+```
+
+## Vision
+
+VastMint aims to provide creators with a simple and powerful platform to launch, mint, and trade NFTs while maintaining a clean and modern user experience.
+
+- GitHub: https://github.com/0x-prv
