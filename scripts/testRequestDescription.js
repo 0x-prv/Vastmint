@@ -3,7 +3,7 @@ const { ethers } = pkg;
 import { encodeAbiParameters, parseAbiParameters } from "viem";
 
 const ORACLE_ADDRESS = "0xd16C7e0c83e8b304976BBBb4b9ed6cC8c70d656F";
-const COLLECTION_ADDRESS = "0xA05AE385f77D58D08351b5f6F8397F1aC3d29b4B";
+const COLLECTION_ADDRESS = "0xd817a4c152bbc8cf6a59e31421ff5e8639e0647b";
 const TOKEN_ID = 1;
 const TEE_REGISTRY = "0x9644e8562cE0Fe12b4deeC4163c064A8862Bf47F";
 

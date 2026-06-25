@@ -27,7 +27,7 @@ type SafeGetLogsParameters = {
 // I-update mo ang values kapag alam na ang exact deployment blocks.
 
 const CONTRACT_DEPLOYMENT_BLOCKS: Record<string, bigint | undefined> = {
-  [VASTMINT_NFT_ADDRESS.toLowerCase()]: 29_113_411n,
+  [VASTMINT_NFT_ADDRESS.toLowerCase()]: 29_926_861n,
   [VASTMINT_FACTORY_ADDRESS.toLowerCase()]: 29_113_411n,
 };
 
