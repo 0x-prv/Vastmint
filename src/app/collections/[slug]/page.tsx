@@ -42,19 +42,6 @@ function resolveIpfs(uri?: string | null): string | null {
   return cleanUri;
 }
 
-  const cleanUri = uri.trim();
-
-  if (cleanUri.startsWith("ipfs://")) {
-    return `${IPFS_GATEWAY}${cleanUri.slice(7)}`;
-  }
-
-  if (cleanUri.startsWith("bafy") || cleanUri.startsWith("Qm")) {
-    return `${IPFS_GATEWAY}${cleanUri}`;
-  }
-
-  return cleanUri;
-}
-
 const metadataCache = new Map<string, TokenMeta>();
 
 type TokenMeta = {
