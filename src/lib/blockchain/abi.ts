@@ -522,4 +522,29 @@ export const VASTMINT_MARKETPLACE_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  
+] as const;
+
+export const VASTMINT_ORACLE_ABI = [
+  {
+    type: "function",
+    name: "getDescription",
+    stateMutability: "view",
+    inputs: [
+      { name: "collection", type: "address" },
+      { name: "tokenId", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "event",
+    name: "DescriptionStored",
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "collection", type: "address" },
+      { indexed: true, name: "tokenId", type: "uint256" },
+      { indexed: false, name: "hasError", type: "bool" },
+      { indexed: false, name: "description", type: "string" },
+    ],
+  },
 ] as const;

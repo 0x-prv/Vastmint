@@ -2,7 +2,7 @@ import pkg from "hardhat";
 const { ethers } = pkg;
 
 // ---- same as your current testRequestDescription.js ----
-const ORACLE_ADDRESS = "0x276c4Bf006c516C376Bf7eb1111d6B7F5776b99E";
+const ORACLE_ADDRESS = "0xd16C7e0c83e8b304976BBBb4b9ed6cC8c70d656F";
 const TEST_COLLECTION = "0x925498132975b7D317a7c89530Db2aA6d5F37C27";
 const TEST_TOKEN_ID = 1;
 const TEST_PROMPT =

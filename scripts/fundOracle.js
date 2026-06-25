@@ -2,7 +2,7 @@ import pkg from "hardhat";
 const { ethers } = pkg;
 
 // ---- EDIT THIS: the address from your deploy output ----
-const ORACLE_ADDRESS = "0x276c4Bf006c516C376Bf7eb1111d6B7F5776b99E";
+const ORACLE_ADDRESS = " 0xd16C7e0c83e8b304976BBBb4b9ed6cC8c70d656F";
 
 // ---- EDIT THIS: how much RITUAL to deposit for LLM call fees ----
 const DEPOSIT_AMOUNT = "0.1"; // in RITUAL

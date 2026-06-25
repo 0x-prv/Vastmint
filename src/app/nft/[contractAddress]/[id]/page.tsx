@@ -17,12 +17,14 @@ import { parseAbiItem } from "viem";
 import {
   VASTMINT_FACTORY_ADDRESS,
   VASTMINT_MARKETPLACE_ADDRESS,
+  RITUAL_ORACLE_ADDRESS,
   RITUAL_CHAIN_ID,
 } from "@/lib/blockchain/contracts";
 import {
   VASTMINT_NFT_ABI,
   VASTMINT_FACTORY_ABI,
   VASTMINT_MARKETPLACE_ABI,
+  VASTMINT_ORACLE_ABI,
 } from "@/lib/blockchain/abi";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
@@ -137,6 +139,22 @@ export default function NFTDetailPage() {
   >("idle");
   const [buyTxHash, setBuyTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [aiDescription, setAiDescription] = useState<string>("");
+
+const { data: oracleDescription } = useReadContract({
+  address: RITUAL_ORACLE_ADDRESS as `0x${string}`,
+  abi: VASTMINT_ORACLE_ABI,
+  functionName: "getDescription",
+  args: [contractAddress as `0x${string}`, tokenId ?? 0n],
+  chainId: RITUAL_CHAIN_ID,
+  query: { enabled: Boolean(contractAddress) && tokenId !== null },
+});
+
+useEffect(() => {
+  if (oracleDescription && typeof oracleDescription === "string" && oracleDescription.trim()) {
+    setAiDescription(oracleDescription);
+  }
+}, [oracleDescription]);
 
   const { isSuccess: buyConfirmed } = useWaitForTransactionReceipt({
     hash: buyTxHash,
@@ -515,6 +533,21 @@ export default function NFTDetailPage() {
                 <p className="text-[#4a6741] mt-4 leading-relaxed text-sm">{displayDescription}</p>
               )}
             </div>
+            {aiDescription && (
+  <div className="mt-4 rounded-xl border border-[#1a4a2e]/20 bg-[#1a4a2e]/5 px-4 py-3">
+    <div className="flex items-center gap-2 mb-2">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a4a2e]/60">
+        🤖 AI Generated Lore
+      </span>
+      <span className="text-[10px] text-[#7a9e7a] border border-[#1a4a2e]/20 rounded-full px-2 py-0.5">
+        Powered by Ritual
+      </span>
+    </div>
+    <p className="text-[#1a2e1a] text-sm leading-relaxed italic">
+      {aiDescription}
+    </p>
+  </div>
+)}
 
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#1a4a2e]/20 border border-[#1a4a2e]/30 flex items-center justify-center flex-shrink-0">
