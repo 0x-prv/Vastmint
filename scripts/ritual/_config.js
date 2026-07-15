@@ -4,6 +4,9 @@ const SECRETS_AC = "0xf9BF1BC8A3e79B9EBeD0fa2Db70D0513fecE32FD";
 const TEE_SERVICE_REGISTRY = "0x9644e8562cE0Fe12b4deeC4163c064A8862Bf47F";
 const HTTP_CAPABILITY = 0;
 const registryAbi = ["function getServicesByCapability(uint8 capability,bool checkValidity) view returns (tuple(tuple(address paymentAddress,address teeAddress,uint8 teeType,bytes publicKey,string endpoint,bytes32 certPubKeyHash,uint8 capability) node,bool isValid,bytes32 workloadId)[])"];
-const walletAbi = ["function balanceOf(address user) view returns (uint256)", "function lockUntilOf(address user) view returns (uint256)"];
+const walletAbi = [
+  "function balanceOf(address user) view returns (uint256)",
+  "function lockUntil(address user) view returns (uint256)"
+];
 const secretsAbi = ["function grantAccess(address delegate,bytes32 secretsHash,uint256 expiresAt,tuple(string[] allowedDestinations,string[] allowedMethods,string[] allowedPaths,string[] allowedQueryParams,string[] allowedHeaders,string secretLocation,string bodyFormat) policy)", "function checkAccess(address owner,address delegate,bytes32 secretsHash) view returns (bool,tuple(string[] allowedDestinations,string[] allowedMethods,string[] allowedPaths,string[] allowedQueryParams,string[] allowedHeaders,string secretLocation,string bodyFormat))"];
 module.exports = { ethers, RITUAL_WALLET, SECRETS_AC, TEE_SERVICE_REGISTRY, HTTP_CAPABILITY, registryAbi, walletAbi, secretsAbi };
