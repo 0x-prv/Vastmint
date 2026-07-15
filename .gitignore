@@ -44,3 +44,7 @@ output.txt
 # hardhat
 /artifacts
 /cache
+
+ritual-skills-ref/
+result-*.bin
+test-allowlist.json

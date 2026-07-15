@@ -243,4 +243,24 @@ return approvedSingle || approvedAll;
         (bool success, ) = payable(to).call{value: amount}("");
         require(success, "Payment failed");
     }
+    // add near the top, with the other state vars
+address public schedulerContract;
+
+event ListingExpired(uint256 indexed listingId);
+
+// add near setTreasury/setPlatformFee
+function setSchedulerContract(address _scheduler) external onlyOwner {
+    require(_scheduler != address(0), "Scheduler required");
+    schedulerContract = _scheduler;
+}
+
+// add near cancelListing
+function cancelExpiredListing(uint256 _listingId) external {
+    require(msg.sender == schedulerContract, "Only scheduler");
+    Listing storage listing = listings[_listingId];
+    require(listing.active, "Listing not active");
+    listing.active = false;
+    delete tokenToListingId[listing.nftContract][listing.tokenId];
+    emit ListingExpired(_listingId);
+}
 }
