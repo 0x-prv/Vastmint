@@ -1,0 +1,11 @@
+const { ethers, SECRETS_AC, secretsAbi } = require('./_config');
+async function main(){
+  const { SECRET_ALLOWLIST_ADDRESS, COLLECTION_ADDRESS, ALLOWLIST_CID, SECRET_OWNER, ALLOWLIST_ENDPOINT_BASE, SECRET_VALUE, EXECUTOR_PUBLIC_KEY } = process.env;
+  if(!SECRET_ALLOWLIST_ADDRESS||!COLLECTION_ADDRESS||!ALLOWLIST_CID||!SECRET_OWNER||!ALLOWLIST_ENDPOINT_BASE) throw new Error('Set SECRET_ALLOWLIST_ADDRESS, COLLECTION_ADDRESS, ALLOWLIST_CID, SECRET_OWNER, ALLOWLIST_ENDPOINT_BASE');
+  let encryptedSecrets=[]; let secretSignatures=[]; let secretsHash=process.env.SECRETS_HASH;
+  if(SECRET_VALUE && EXECUTOR_PUBLIC_KEY){ const { encrypt, ECIES_CONFIG } = require('eciesjs'); ECIES_CONFIG.symmetricNonceLength = 12; const encrypted='0x'+encrypt(Buffer.from(EXECUTOR_PUBLIC_KEY.replace(/^0x/,''),'hex'), Buffer.from(JSON.stringify({ API_KEY: SECRET_VALUE }))).toString('hex'); encryptedSecrets=[encrypted]; const [signer]=await ethers.getSigners(); secretSignatures=[await signer.signMessage(ethers.getBytes(encrypted))]; secretsHash=ethers.keccak256(encrypted); console.log({encryptedSecretHash:secretsHash}); }
+  if(!secretsHash) throw new Error('Set SECRETS_HASH or SECRET_VALUE + EXECUTOR_PUBLIC_KEY');
+  if(process.env.GRANT_SECRETS_ACCESS==='true'){ const sac=await ethers.getContractAt(secretsAbi, SECRETS_AC); const policy={allowedDestinations:[new URL(ALLOWLIST_ENDPOINT_BASE).hostname],allowedMethods:['GET'],allowedPaths:['/api/allowlist/verify'],allowedQueryParams:['cid','wallet','collection','requestId'],allowedHeaders:['Authorization'],secretLocation:'header',bodyFormat:''}; const tx=await sac.grantAccess(SECRET_ALLOWLIST_ADDRESS,secretsHash,BigInt(Math.floor(Date.now()/1000)+Number(process.env.SECRETS_EXPIRES_SECONDS||2592000)),policy); console.log('grantAccess tx:', tx.hash); await tx.wait(); }
+  const contract=await ethers.getContractAt('VastMintSecretAllowlist', SECRET_ALLOWLIST_ADDRESS); const tx=await contract.configureAllowlist(COLLECTION_ADDRESS, ALLOWLIST_CID, secretsHash, SECRET_OWNER, ALLOWLIST_ENDPOINT_BASE, process.env.ALLOWLIST_ACTIVE !== 'false', Number(process.env.ALLOWLIST_VALIDITY_SECONDS||86400), encryptedSecrets, secretSignatures); console.log('configureAllowlist tx:', tx.hash); await tx.wait();
+}
+main().catch((e)=>{ console.error(e); process.exit(1); });
