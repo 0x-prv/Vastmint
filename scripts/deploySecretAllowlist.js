@@ -8,7 +8,9 @@ async function main() {
   console.log("Deployer:", deployer.address);
 
   const VastMintSecretAllowlist = await ethers.getContractFactory("VastMintSecretAllowlist");
-  const secretAllowlist = await VastMintSecretAllowlist.deploy();
+  const factory = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
+  const factories = factory ? [factory] : [];
+  const secretAllowlist = await VastMintSecretAllowlist.deploy(factories);
   await secretAllowlist.waitForDeployment();
 
   const address = await secretAllowlist.getAddress();

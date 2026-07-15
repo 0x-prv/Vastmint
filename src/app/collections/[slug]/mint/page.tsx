@@ -15,9 +15,12 @@ import {
 
 import {
   VASTMINT_FACTORY_ADDRESS,
+  VASTMINT_SECRET_ALLOWLIST_ADDRESS,
   RITUAL_CHAIN_ID,
 } from "@/lib/blockchain/contracts";
 import { VASTMINT_NFT_ABI, VASTMINT_FACTORY_ABI } from "@/lib/blockchain/abi";
+import { useRitualAsyncTransaction } from "@/hooks/useRitualAsyncTransaction";
+import { RITUAL_WALLET, RITUAL_WALLET_ABI, SECRET_ALLOWLIST_ABI, TEE_SERVICE_REGISTRY, TEE_SERVICE_REGISTRY_ABI } from "@/lib/ritual/secretAllowlist";
 
 const EXPLORER_URL = "https://explorer.ritualfoundation.org";
 const ZERO_BYTES32 =
@@ -70,6 +73,7 @@ export default function MintPage() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
+  const ritualTx = useRitualAsyncTransaction();
 
   const [mintState, setMintState] = useState<MintState>("idle");
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
@@ -140,6 +144,49 @@ const { data: maxPerWallet } = useReadContract({
   query: { enabled: !!contractAddress },
 });
 
+
+  const secretAllowlistAddress = VASTMINT_SECRET_ALLOWLIST_ADDRESS as `0x${string}`;
+  const { data: secretConfig, refetch: refetchSecretConfig } = useReadContract({
+    address: secretAllowlistAddress,
+    abi: SECRET_ALLOWLIST_ABI,
+    functionName: "collectionAllowlist",
+    args: [contractAddress ?? "0x0000000000000000000000000000000000000000"],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!contractAddress && !!VASTMINT_SECRET_ALLOWLIST_ADDRESS },
+  });
+  const { data: secretStatus, refetch: refetchSecretStatus } = useReadContract({
+    address: secretAllowlistAddress,
+    abi: SECRET_ALLOWLIST_ABI,
+    functionName: "getAllowlistStatus",
+    args: [contractAddress ?? "0x0000000000000000000000000000000000000000", address ?? "0x0000000000000000000000000000000000000000"],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!contractAddress && !!address && !!VASTMINT_SECRET_ALLOWLIST_ADDRESS },
+  });
+  const { data: executors } = useReadContract({
+    address: TEE_SERVICE_REGISTRY,
+    abi: TEE_SERVICE_REGISTRY_ABI,
+    functionName: "getServicesByCapability",
+    args: [0, true],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!VASTMINT_SECRET_ALLOWLIST_ADDRESS },
+  });
+  const { data: ritualWalletBalance } = useReadContract({
+    address: RITUAL_WALLET,
+    abi: RITUAL_WALLET_ABI,
+    functionName: "balanceOf",
+    args: [address ?? "0x0000000000000000000000000000000000000000"],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!address },
+  });
+  const { data: ritualWalletLockUntil } = useReadContract({
+    address: RITUAL_WALLET,
+    abi: RITUAL_WALLET_ABI,
+    functionName: "lockUntilOf",
+    args: [address ?? "0x0000000000000000000000000000000000000000"],
+    chainId: RITUAL_CHAIN_ID,
+    query: { enabled: !!address },
+  });
+
 const { data: userMintCount } = useReadContract({
   address: contractAddress,
   abi: VASTMINT_NFT_ABI,
@@ -162,6 +209,10 @@ const whitelistPriceLabel = formatMintPrice(whitelistPrice as bigint | undefined
 const userMinted = userMintCount ? Number(userMintCount) : 0;
 const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
   const isSoldOut = maxSupply > 0 && minted >= maxSupply;
+  const secretModeActive = Boolean(secretConfig?.configured && secretConfig?.active);
+  const secretCurrentlyValid = Boolean(secretStatus?.currentlyValid);
+  const secretExpired = Boolean(secretStatus?.resolved && !secretStatus?.currentlyValid && Number(secretStatus?.expiresAt ?? 0) > 0);
+  const selectedExecutor = executors?.[0]?.node.teeAddress as `0x${string}` | undefined;
 
   useEffect(() => {
     try {
@@ -200,6 +251,25 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
     displayMintState === "confirming";
 
   
+
+  async function handleSecretAllowlistVerify() {
+    if (!contractAddress || !selectedExecutor || !VASTMINT_SECRET_ALLOWLIST_ADDRESS) return;
+    setErrorMsg(null);
+    try {
+      if (isWrongNetwork) {
+        setMintState("switching");
+        await switchChainAsync({ chainId: RITUAL_CHAIN_ID });
+      }
+      await ritualTx.verifyAllowlist({ contract: secretAllowlistAddress, collection: contractAddress, executor: selectedExecutor });
+      await refetchSecretConfig();
+      await refetchSecretStatus();
+      setMintState("idle");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Secret allowlist verification failed.");
+      setMintState("error");
+    }
+  }
+
    async function handleMint() {
   if (!address || !contractAddress || !collection) return;
   if (isSoldOut) return;
@@ -589,6 +659,31 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
                       <p className="text-[#7a9e7a] text-sm">
                         Connect your wallet to mint
                       </p>
+                    </div>
+                  )}
+
+
+                  {secretModeActive && (
+                    <div className="rounded-xl border border-[#1a4a2e]/15 bg-[#e0dbd0]/70 p-4 mb-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-[#1a4a2e] text-xs font-bold uppercase tracking-[0.18em]">Ritual Secret Allowlist</p>
+                          <p className="text-[#4a6741] text-sm mt-2">
+                            {secretCurrentlyValid ? "Verified" : secretExpired ? "Expired" : secretStatus?.resolved && !secretStatus.allowed ? "Not allowlisted" : ritualTx.status === "waiting" ? "Waiting for Ritual execution" : ritualTx.status === "submitting" ? "Submitting" : "Ready"}
+                          </p>
+                          <p className="text-[#7a9e7a] text-xs mt-2">RitualWallet balance: {ritualWalletBalance !== undefined ? formatEther(ritualWalletBalance as bigint) : "—"} · lockUntil: {ritualWalletLockUntil !== undefined ? String(ritualWalletLockUntil) : "—"}</p>
+                        </div>
+                        {secretCurrentlyValid && <span className="rounded-full bg-[#1a4a2e]/10 px-3 py-1 text-xs font-bold text-[#1a4a2e]">Verified</span>}
+                      </div>
+                      {ritualTx.txHash && (
+                        <a href={`${EXPLORER_URL}/tx/${ritualTx.txHash}`} target="_blank" rel="noopener noreferrer" className="mt-3 block text-xs font-mono text-[#1a4a2e] break-all">{ritualTx.txHash}</a>
+                      )}
+                      {(ritualTx.error || (displayMintState === "error" && errorMsg)) && <p className="text-red-500 text-sm mt-3">{ritualTx.error ?? errorMsg}</p>}
+                      {!secretCurrentlyValid && (
+                        <button onClick={handleSecretAllowlistVerify} disabled={!isConnected || ritualTx.status === "submitting" || ritualTx.status === "waiting" || !selectedExecutor} className="mt-4 w-full rounded-xl border border-[#1a4a2e]/30 px-4 py-3 text-sm font-bold text-[#1a4a2e] hover:bg-[#1a4a2e]/10 disabled:opacity-50">
+                          {ritualTx.status === "submitting" ? "Submitting..." : ritualTx.status === "waiting" ? "Waiting for Ritual execution..." : "Verify allowlist access"}
+                        </button>
+                      )}
                     </div>
                   )}
 
