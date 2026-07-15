@@ -45,6 +45,6 @@ output.txt
 /artifacts
 /cache
 
-ritual-skills-ref/
+# ritual-skills-ref/
 result-*.bin
 test-allowlist.json
