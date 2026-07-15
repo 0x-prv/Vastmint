@@ -217,10 +217,8 @@ const walletLimit = maxPerWallet ? Number(maxPerWallet) : 0;
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`vastmint_whitelist_${slug}`);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWhitelistProofData(stored ? (JSON.parse(stored) as WhitelistProofData) : null);
     } catch {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
       setWhitelistProofData(null);
     }
   }, [slug]);
