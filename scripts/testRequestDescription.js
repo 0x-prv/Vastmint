@@ -83,7 +83,7 @@ console.log("Tx sent:", tx.hash);
       const parsed = iface.parseLog(log);
       console.log("hasError:", parsed.args.hasError);
       console.log("description:", parsed.args.description);
-    } catch(e) {}
+    } catch {}
   }
 
   const description = await oracle.getDescription(COLLECTION_ADDRESS, TOKEN_ID);

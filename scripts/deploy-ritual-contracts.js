@@ -13,7 +13,7 @@ async function main() {
   console.log("NEW VastMintMarketplace deployed to:", marketplaceAddress);
 
   // 2. Reuse your already-deployed PasskeyAuth and Scheduler contracts
-  const passkeyAuth = await hre.ethers.getContractAt(
+  await hre.ethers.getContractAt(
     "VastMintPasskeyAuth",
     "0xC1C99f29cB1A1Ec92AE98761C2d7f83548A27C1C"
   );

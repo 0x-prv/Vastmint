@@ -139,7 +139,6 @@ export default function NFTDetailPage() {
   >("idle");
   const [buyTxHash, setBuyTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [buyError, setBuyError] = useState<string | null>(null);
-  const [aiDescription, setAiDescription] = useState<string>("");
 
 const { data: oracleDescription } = useReadContract({
   address: RITUAL_ORACLE_ADDRESS as `0x${string}`,
@@ -150,11 +149,10 @@ const { data: oracleDescription } = useReadContract({
   query: { enabled: Boolean(contractAddress) && tokenId !== null },
 });
 
-useEffect(() => {
-  if (oracleDescription && typeof oracleDescription === "string" && oracleDescription.trim()) {
-    setAiDescription(oracleDescription);
-  }
-}, [oracleDescription]);
+const aiDescription =
+  typeof oracleDescription === "string" && oracleDescription.trim()
+    ? oracleDescription
+    : "";
 
   const { isSuccess: buyConfirmed } = useWaitForTransactionReceipt({
     hash: buyTxHash,

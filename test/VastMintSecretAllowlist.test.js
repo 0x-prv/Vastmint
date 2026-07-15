@@ -12,13 +12,13 @@ function response(status, body, error = "") {
 
 describe("VastMintSecretAllowlist", function () {
   async function fixture() {
-    const [owner, creator, user, other] = await ethers.getSigners();
+    const [, creator, , other] = await ethers.getSigners();
     const NFT = await ethers.getContractFactory("VastMintNFT");
     const nft = await NFT.deploy("Test", "TST", "desc", "", "", 100, 0, 0, 0, ethers.ZeroHash, creator.address);
     const Allow = await ethers.getContractFactory("VastMintSecretAllowlist");
     const allow = await Allow.deploy([await nft.factory()]);
     await network.provider.send("hardhat_setCode", [SECRETS, "0x600160005260206000f3"]); // placeholder, real suite should mock checkAccess ABI
-    return { owner, creator, user, other, nft, allow };
+    return { creator, other, nft, allow };
   }
 
   it("rejects unauthorized configuration", async function () {
